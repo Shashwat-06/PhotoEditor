@@ -80,6 +80,7 @@ function ExportMenu() {
   const [format, setFormat] = useState<ExportFormat>("PNG");
   const [quality, setQuality] = useState<QualityPreset>("fullhd");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const storeTitle = useEditorStore((state) => state.title);
 
   const handleTriggerExport = () => {
     const activeQuality = QUALITY_DETAILS[quality];
@@ -108,8 +109,11 @@ function ExportMenu() {
         return;
       }
 
+      const safeTitle =
+        storeTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase() ||
+        "untitled_project";
       const link = document.createElement("a");
-      link.download = `DaVinci_Render_${Date.now()}.${format.toLowerCase()}`;
+      link.download = `${safeTitle}_${Date.now()}.${format.toLowerCase()}`;
       link.href = dataUrl;
 
       document.body.appendChild(link);
@@ -245,18 +249,22 @@ export default function EditorPage() {
 
   return (
     <div className="h-screen w-full bg-neutral-950 text-neutral-50 flex flex-col overflow-hidden select-none">
-      {/* ELEVATED HEADER: Notice the relative and z-[100] classes here */}
       <header className="relative z-[100] h-14 border-b border-neutral-800 bg-neutral-900 flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard"
-            className="text-neutral-400 hover:text-white transition-colors"
+            className="text-neutral-400 hover:text-white transition-colors flex items-center"
           >
             <MdArrowBack className="text-xl" />
           </Link>
-          <span className="text-sm font-medium text-neutral-300">
-            DaVinci Web Engine
-          </span>
+
+          <input
+            type="text"
+            value={store.title}
+            onChange={(e) => store.setTitle(e.target.value)}
+            placeholder="Untitled project"
+            className="text-sm font-medium text-neutral-200 bg-transparent border border-transparent hover:border-neutral-700 focus:border-blue-500 focus:bg-neutral-950 rounded px-2 py-1 w-48 transition-all outline-none"
+          />
         </div>
 
         <div className="flex items-center gap-4">

@@ -3,13 +3,14 @@ import { create } from "zustand";
 const hexToRgb = (hex: string): [number, number, number] => {
   const bigint = parseInt(hex.replace("#", ""), 16);
   return [
-    ((bigint >> 16) & 255) / 255,
-    ((bigint >> 8) & 255) / 255,
+    (bigint >> 16) & (255 / 255),
+    (bigint >> 8) & (255 / 255),
     (bigint & 255) / 255,
   ];
 };
 
 interface EditorState {
+  title: string; // Project Title
   exposure: number;
   contrast: number;
   saturation: number;
@@ -50,6 +51,7 @@ interface EditorState {
   imageData: string | null;
   activePreset: string;
 
+  setTitle: (val: string) => void;
   setExposure: (val: number) => void;
   setContrast: (val: number) => void;
   setSaturation: (val: number) => void;
@@ -81,6 +83,7 @@ interface EditorState {
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
+  title: "Untitled project", // Default title
   exposure: 0.0,
   contrast: 1.0,
   saturation: 1.0,
@@ -114,13 +117,13 @@ export const useEditorStore = create<EditorState>((set) => ({
     crt: false,
   },
 
-  // INCREASED DEFAULT ZOOM TO 120 (Was 80)
   zoom: 120,
   rotation: 0,
   isRotating: false,
   imageData: null,
   activePreset: "Default",
 
+  setTitle: (title) => set({ title }),
   setExposure: (exposure) => set({ exposure, activePreset: "Custom" }),
   setContrast: (contrast) => set({ contrast, activePreset: "Custom" }),
   setSaturation: (saturation) => set({ saturation, activePreset: "Custom" }),
@@ -176,7 +179,6 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   setImageData: (url) =>
     set({
-      // ALSO SET NEW DEFAULT ZOOM HERE SO IT APPLIES ON NEW UPLOADS
       imageData: url,
       zoom: 120,
       rotation: 0,
