@@ -17,9 +17,9 @@ const PRESETS = [
   "Teal & Orange",
   "Cyberpunk Neon",
   "Film Noir",
-  "Vintage Matte",
   "Matrix Digital",
-  "Faded Vignette",
+  "Dizzy Motion",
+  "Vintage Leak",
 ];
 
 export default function EditorPage() {
@@ -121,13 +121,14 @@ export default function EditorPage() {
                       : "bg-neutral-800/50 border-neutral-700 text-neutral-300 hover:bg-neutral-800"
                   }`}
                 >
-                  {name}
+                  {" "}
+                  {name}{" "}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Optical Shaders (FX Rack) */}
+          {/* Optical FX Rack */}
           <div className="p-6 border-b border-neutral-800 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center justify-between">
               Optical FX Rack
@@ -137,35 +138,124 @@ export default function EditorPage() {
             </h3>
 
             <div className="flex flex-col gap-3">
-              {/* Vignette */}
+              {/* Shutter Drag */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
-                  onClick={() => store.toggleFX("vignette")}
+                  onClick={() => store.toggleFX("shutter")}
                 >
                   <span className="text-xs font-medium">
-                    Cinematic Vignette
+                    Shutter Drag (Blur)
                   </span>
                   <div
-                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.vignette ? "bg-blue-500" : "bg-neutral-700"}`}
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.shutter ? "bg-orange-500" : "bg-neutral-700"}`}
                   >
                     <div
-                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.vignette ? "translate-x-4" : "translate-x-0"}`}
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.shutter ? "translate-x-4" : "translate-x-0"}`}
                     />
                   </div>
                 </div>
-                {store.enabledFX.vignette && (
+                {store.enabledFX.shutter && (
+                  <div className="p-3 border-t border-neutral-800 bg-neutral-900/50 flex flex-col gap-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
+                        <span>Motion Amount</span>
+                        <span>{store.blurStrength.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="0.1"
+                        step="0.001"
+                        value={store.blurStrength}
+                        onChange={(e) =>
+                          store.setBlurStrength(parseFloat(e.target.value))
+                        }
+                        className="w-full accent-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
+                        <span>Angle</span>
+                        <span>
+                          {(store.blurAngle * (180 / Math.PI)).toFixed(0)}°
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="6.28"
+                        step="0.01"
+                        value={store.blurAngle}
+                        onChange={(e) =>
+                          store.setBlurAngle(parseFloat(e.target.value))
+                        }
+                        className="w-full accent-orange-500"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Light Leak */}
+              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
+                  onClick={() => store.toggleFX("leak")}
+                >
+                  <span className="text-xs font-medium">
+                    Vintage Light Leak
+                  </span>
+                  <div
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.leak ? "bg-red-500" : "bg-neutral-700"}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.leak ? "translate-x-4" : "translate-x-0"}`}
+                    />
+                  </div>
+                </div>
+                {store.enabledFX.leak && (
                   <div className="p-3 border-t border-neutral-800 bg-neutral-900/50">
                     <input
                       type="range"
                       min="0"
-                      max="1.5"
+                      max="2"
                       step="0.01"
-                      value={store.vignette}
+                      value={store.lightLeak}
                       onChange={(e) =>
-                        store.setVignette(parseFloat(e.target.value))
+                        store.setLightLeak(parseFloat(e.target.value))
                       }
-                      className="w-full accent-blue-500"
+                      className="w-full accent-red-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Hue Rotation - Uniform color fix */}
+              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
+                  onClick={() => store.toggleFX("hue")}
+                >
+                  <span className="text-xs font-medium">Hue Rotation</span>
+                  <div
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.hue ? "bg-indigo-500" : "bg-neutral-700"}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.hue ? "translate-x-4" : "translate-x-0"}`}
+                    />
+                  </div>
+                </div>
+                {store.enabledFX.hue && (
+                  <div className="p-3 border-t border-neutral-800 bg-neutral-900/50">
+                    <input
+                      type="range"
+                      min="-3.14"
+                      max="3.14"
+                      step="0.01"
+                      value={store.hue}
+                      onChange={(e) => store.setHue(parseFloat(e.target.value))}
+                      className="w-full accent-indigo-500"
                     />
                   </div>
                 )}
@@ -205,31 +295,35 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {/* Hue Rotation */}
+              {/* Vignette */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
-                  onClick={() => store.toggleFX("hue")}
+                  onClick={() => store.toggleFX("vignette")}
                 >
-                  <span className="text-xs font-medium">Hue Rotation</span>
+                  <span className="text-xs font-medium">
+                    Cinematic Vignette
+                  </span>
                   <div
-                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.hue ? "bg-gradient-to-r from-red-500 via-green-500 to-blue-500" : "bg-neutral-700"}`}
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.vignette ? "bg-blue-500" : "bg-neutral-700"}`}
                   >
                     <div
-                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.hue ? "translate-x-4" : "translate-x-0"}`}
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.vignette ? "translate-x-4" : "translate-x-0"}`}
                     />
                   </div>
                 </div>
-                {store.enabledFX.hue && (
+                {store.enabledFX.vignette && (
                   <div className="p-3 border-t border-neutral-800 bg-neutral-900/50">
                     <input
                       type="range"
-                      min="-3.14"
-                      max="3.14"
+                      min="0"
+                      max="1.5"
                       step="0.01"
-                      value={store.hue}
-                      onChange={(e) => store.setHue(parseFloat(e.target.value))}
-                      className="w-full accent-neutral-400"
+                      value={store.vignette}
+                      onChange={(e) =>
+                        store.setVignette(parseFloat(e.target.value))
+                      }
+                      className="w-full accent-blue-500"
                     />
                   </div>
                 )}
@@ -241,7 +335,9 @@ export default function EditorPage() {
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
                   onClick={() => store.toggleFX("matrix")}
                 >
-                  <span className="text-xs font-medium">Matrix Halftone</span>
+                  <span className="text-xs font-medium">
+                    Digital Matrix Blocks
+                  </span>
                   <div
                     className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.matrix ? "bg-green-500" : "bg-neutral-700"}`}
                   >
@@ -289,9 +385,41 @@ export default function EditorPage() {
                   </div>
                 )}
               </div>
+
+              {/* CRT Scanlines */}
+              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
+                  onClick={() => store.toggleFX("crt")}
+                >
+                  <span className="text-xs font-medium">CRT Scanlines</span>
+                  <div
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.crt ? "bg-emerald-500" : "bg-neutral-700"}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.crt ? "translate-x-4" : "translate-x-0"}`}
+                    />
+                  </div>
+                </div>
+                {store.enabledFX.crt && (
+                  <div className="p-3 border-t border-neutral-800 bg-neutral-900/50">
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.01"
+                      value={store.scanlines}
+                      onChange={(e) =>
+                        store.setScanlines(parseFloat(e.target.value))
+                      }
+                      className="w-full accent-emerald-500"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Film Grain (Always Visible) */}
+            {/* Film Grain (Always Visible Base Layer) */}
             <div className="mt-4 flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Film Grain Noise</span>

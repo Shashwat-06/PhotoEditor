@@ -10,35 +10,37 @@ const hexToRgb = (hex: string): [number, number, number] => {
 };
 
 interface EditorState {
-  // Base Controls
   exposure: number;
   contrast: number;
   saturation: number;
   temperature: number;
   tint: number;
-
-  // DaVinci 3-Way Wheels
   lift: [number, number, number];
   gamma: [number, number, number];
   gain: [number, number, number];
 
-  // Shaders & FX
+  // FX States
   grain: number;
   asciiSize: number;
   asciiDensity: number;
   vignette: number;
   aberration: number;
   hue: number;
+  blurStrength: number;
+  blurAngle: number; // Shutter Drag
+  lightLeak: number; // Film Edge Burn
+  scanlines: number; // CRT Effect
 
-  // Toggle Rack State
   enabledFX: {
     matrix: boolean;
     vignette: boolean;
     aberration: boolean;
     hue: boolean;
+    shutter: boolean;
+    leak: boolean;
+    crt: boolean;
   };
 
-  // Transform & System
   zoom: number;
   rotation: number;
   isRotating: boolean;
@@ -51,19 +53,21 @@ interface EditorState {
   setSaturation: (val: number) => void;
   setTemperature: (val: number) => void;
   setTint: (val: number) => void;
-
   setLift: (hex: string) => void;
   setGamma: (hex: string) => void;
   setGain: (hex: string) => void;
-
   setGrain: (val: number) => void;
   setAsciiSize: (val: number) => void;
   setAsciiDensity: (val: number) => void;
   setVignette: (val: number) => void;
   setAberration: (val: number) => void;
   setHue: (val: number) => void;
-  toggleFX: (fxName: keyof EditorState["enabledFX"]) => void;
+  setBlurStrength: (val: number) => void;
+  setBlurAngle: (val: number) => void;
+  setLightLeak: (val: number) => void;
+  setScanlines: (val: number) => void;
 
+  toggleFX: (fxName: keyof EditorState["enabledFX"]) => void;
   setRotation: (val: number) => void;
   setIsRotating: (val: boolean) => void;
   setZoom: (val: number | ((prev: number) => number)) => void;
@@ -80,19 +84,25 @@ export const useEditorStore = create<EditorState>((set) => ({
   lift: [0, 0, 0],
   gamma: [1, 1, 1],
   gain: [1, 1, 1],
-
   grain: 0.0,
   asciiSize: 0.0,
   asciiDensity: 100.0,
   vignette: 0.0,
   aberration: 0.0,
   hue: 0.0,
+  blurStrength: 0.0,
+  blurAngle: 0.78,
+  lightLeak: 0.0,
+  scanlines: 0.0,
 
   enabledFX: {
     matrix: false,
     vignette: false,
     aberration: false,
     hue: false,
+    shutter: false,
+    leak: false,
+    crt: false,
   },
 
   zoom: 80,
@@ -106,7 +116,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   setSaturation: (saturation) => set({ saturation, activePreset: "Custom" }),
   setTemperature: (temperature) => set({ temperature, activePreset: "Custom" }),
   setTint: (tint) => set({ tint, activePreset: "Custom" }),
-
   setLift: (hex) => set({ lift: hexToRgb(hex), activePreset: "Custom" }),
   setGamma: (hex) => set({ gamma: hexToRgb(hex), activePreset: "Custom" }),
   setGain: (hex) => set({ gain: hexToRgb(hex), activePreset: "Custom" }),
@@ -118,6 +127,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   setVignette: (vignette) => set({ vignette, activePreset: "Custom" }),
   setAberration: (aberration) => set({ aberration, activePreset: "Custom" }),
   setHue: (hue) => set({ hue, activePreset: "Custom" }),
+  setBlurStrength: (blurStrength) =>
+    set({ blurStrength, activePreset: "Custom" }),
+  setBlurAngle: (blurAngle) => set({ blurAngle, activePreset: "Custom" }),
+  setLightLeak: (lightLeak) => set({ lightLeak, activePreset: "Custom" }),
+  setScanlines: (scanlines) => set({ scanlines, activePreset: "Custom" }),
 
   toggleFX: (fxName) =>
     set((state) => ({
@@ -164,11 +178,18 @@ export const useEditorStore = create<EditorState>((set) => ({
       vignette: 0,
       aberration: 0,
       hue: 0,
+      blurStrength: 0,
+      blurAngle: 0.78,
+      lightLeak: 0,
+      scanlines: 0,
       enabledFX: {
         matrix: false,
         vignette: false,
         aberration: false,
         hue: false,
+        shutter: false,
+        leak: false,
+        crt: false,
       },
     }),
 
@@ -190,14 +211,20 @@ export const useEditorStore = create<EditorState>((set) => ({
         vignette: 0,
         aberration: 0,
         hue: 0,
+        blurStrength: 0,
+        blurAngle: 0.78,
+        lightLeak: 0,
+        scanlines: 0,
         enabledFX: {
           matrix: false,
           vignette: false,
           aberration: false,
           hue: false,
+          shutter: false,
+          leak: false,
+          crt: false,
         },
       };
-
       switch (name) {
         case "Teal & Orange":
           return {
@@ -225,16 +252,6 @@ export const useEditorStore = create<EditorState>((set) => ({
             grain: 0.22,
             lift: [-0.02, -0.02, -0.02],
           };
-        case "Vintage Matte":
-          return {
-            ...base,
-            contrast: 0.85,
-            exposure: 0.1,
-            temperature: 0.15,
-            grain: 0.12,
-            lift: [0.08, 0.06, 0.04],
-            gamma: [1.05, 1.0, 0.95],
-          };
         case "Matrix Digital":
           return {
             ...base,
@@ -242,15 +259,31 @@ export const useEditorStore = create<EditorState>((set) => ({
             asciiDensity: 140,
             tint: -0.2,
             saturation: 0.8,
-            enabledFX: { ...base.enabledFX, matrix: true },
+            scanlines: 0.8,
+            enabledFX: { ...base.enabledFX, matrix: true, crt: true },
           };
-        case "Faded Vignette":
+        case "Dizzy Motion":
           return {
             ...base,
-            vignette: 0.8,
+            blurStrength: 0.05,
+            blurAngle: 0.78,
+            aberration: 0.5,
+            vignette: 0.4,
+            enabledFX: {
+              ...base.enabledFX,
+              shutter: true,
+              aberration: true,
+              vignette: true,
+            },
+          };
+        case "Vintage Leak":
+          return {
+            ...base,
+            lightLeak: 0.8,
+            grain: 0.15,
             contrast: 0.9,
-            saturation: 0.8,
-            enabledFX: { ...base.enabledFX, vignette: true },
+            temperature: 0.1,
+            enabledFX: { ...base.enabledFX, leak: true },
           };
         default:
           return base;
