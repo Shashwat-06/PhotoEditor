@@ -99,18 +99,14 @@ const ColorGradeMaterial = shaderMaterial(
 
       float luma = dot(color, vec3(0.299, 0.587, 0.114));
 
-      // 1. Natural Matrix Halftone Dots (Restored to Circles!)
       if (uMatrixSize > 0.0) {
         vec2 cellUv = fract(vUv * uMatrixDensity) - 0.5;
-        // Use true distance from center to create a circle
         float dist = length(cellUv);
         float radius = luma * 0.7 * uMatrixSize; 
-        // Smoothstep makes the edges of the dots soft and natural
         float shape = 1.0 - smoothstep(radius - 0.05, radius + 0.05, dist);
         color = color * shape;
       }
 
-      // 2. Procedural ASCII Characters
       if (uAsciiSize > 0.0) {
         vec2 cellUv = (fract(vUv * uAsciiDensity) - 0.5) / max(uAsciiSize, 0.01);
         float charShape = 0.0;
@@ -200,7 +196,10 @@ export default function EditorCanvas() {
   const { imageData, zoom } = useEditorStore();
   if (!imageData) return null;
   return (
-    <Canvas className="w-full h-full relative">
+    <Canvas
+      className="w-full h-full relative"
+      gl={{ preserveDrawingBuffer: true }}
+    >
       <OrthographicCamera makeDefault position={[0, 0, 10]} zoom={zoom} />
       <Suspense fallback={null}>
         <ImagePlane imageUrl={imageData} />

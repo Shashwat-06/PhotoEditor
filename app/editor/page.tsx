@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useRef } from "react";
 import {
   MdArrowBack,
   MdDownload,
@@ -8,6 +9,8 @@ import {
   MdZoomOut,
   MdImage,
   MdMovieFilter,
+  MdLock,
+  MdKeyboardArrowDown,
 } from "react-icons/md";
 import { useEditorStore } from "@/store/editorStore";
 import EditorCanvas from "@/components/editor/canvas/EditorCanvas";
@@ -35,6 +38,203 @@ const rgbToHex = (r: number, g: number, b: number) => {
   );
 };
 
+type ExportFormat = "PNG" | "JPEG" | "WEBP" | "TIFF";
+type QualityPreset = "low" | "hd" | "fullhd" | "uhd";
+
+interface QualityOption {
+  label: string;
+  dimensions: string;
+  description: string;
+  isPremium: boolean;
+}
+
+const QUALITY_DETAILS: Record<QualityPreset, QualityOption> = {
+  low: {
+    label: "Low Quality (SD)",
+    dimensions: "854 × 480 px",
+    description: "Fast processing, ideal for web mockups",
+    isPremium: false,
+  },
+  hd: {
+    label: "Standard (HD)",
+    dimensions: "1280 × 720 px",
+    description: "Good for standard digital delivery",
+    isPremium: false,
+  },
+  fullhd: {
+    label: "High Quality (FHD)",
+    dimensions: "1920 × 1080 px",
+    description: "Sharp detail for social media",
+    isPremium: false,
+  },
+  uhd: {
+    label: "Ultra HD (4K / UHD)",
+    dimensions: "3840 × 2160 px",
+    description: "Maximum depth for commercial production",
+    isPremium: true,
+  },
+};
+
+function ExportMenu() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [format, setFormat] = useState<ExportFormat>("PNG");
+  const [quality, setQuality] = useState<QualityPreset>("fullhd");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleTriggerExport = () => {
+    const activeQuality = QUALITY_DETAILS[quality];
+    if (activeQuality.isPremium) {
+      alert("Premium Feature: Redirecting to Pro upgrade gateway...");
+      return;
+    }
+
+    try {
+      const canvas = document.querySelector("canvas");
+      if (!canvas) {
+        alert("Error: No canvas found. Please upload an image first.");
+        return;
+      }
+
+      const mimeType =
+        format === "JPEG"
+          ? "image/jpeg"
+          : format === "WEBP"
+            ? "image/webp"
+            : "image/png";
+      const dataUrl = canvas.toDataURL(mimeType, 1.0);
+
+      if (dataUrl === "data:,") {
+        alert("Error: Canvas is blank or empty.");
+        return;
+      }
+
+      const link = document.createElement("a");
+      link.download = `DaVinci_Render_${Date.now()}.${format.toLowerCase()}`;
+      link.href = dataUrl;
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 150);
+
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Export Error Detailed Log:", error);
+      alert(
+        "Export failed. Check your browser console. If it says 'Tainted Canvas', your browser is blocking the image export for security reasons.",
+      );
+    }
+  };
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+      >
+        <MdDownload className="text-lg" /> Export
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+
+          <div className="absolute right-0 mt-2 w-80 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-50 p-4 transition-all">
+            <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4">
+              Download Settings
+            </h4>
+
+            <div className="mb-4">
+              <label className="block text-[10px] text-neutral-400 font-medium mb-1.5 uppercase">
+                File Type
+              </label>
+              <div className="relative">
+                <select
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value as ExportFormat)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs font-medium text-neutral-200 outline-none appearance-none cursor-pointer focus:border-neutral-600"
+                >
+                  <option value="PNG">
+                    PNG (Best for web and lossless details)
+                  </option>
+                  <option value="JPEG">JPEG (Small file size, standard)</option>
+                  <option value="WEBP">
+                    WebP (Optimized modern browser asset)
+                  </option>
+                  <option value="TIFF">
+                    TIFF (Lossless heavy archival master)
+                  </option>
+                </select>
+                <MdKeyboardArrowDown className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none text-base" />
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-[10px] text-neutral-400 font-medium mb-1.5 uppercase">
+                Size / Quality Profile
+              </label>
+              <div className="flex flex-col gap-2">
+                {(Object.keys(QUALITY_DETAILS) as QualityPreset[]).map(
+                  (key) => {
+                    const option = QUALITY_DETAILS[key];
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setQuality(key)}
+                        className={`w-full flex items-center justify-between p-2.5 text-left rounded-lg border text-xs transition-all ${
+                          quality === key
+                            ? "bg-neutral-950 border-neutral-700 text-white ring-1 ring-neutral-700"
+                            : "bg-neutral-950/40 border-neutral-800/80 text-neutral-400 hover:bg-neutral-950 hover:border-neutral-700"
+                        }`}
+                      >
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium text-neutral-200 flex items-center gap-1.5">
+                            {option.label}
+                            {option.isPremium && (
+                              <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold text-[8px] px-1 py-0.5 rounded uppercase flex items-center gap-0.5 tracking-tight">
+                                <MdLock className="text-[9px]" /> PRO
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[10px] text-neutral-500">
+                            {option.description}
+                          </span>
+                        </div>
+                        <span className="font-mono text-[11px] font-semibold text-neutral-400 whitespace-nowrap self-start pt-0.5">
+                          {option.dimensions}
+                        </span>
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={handleTriggerExport}
+              className={`w-full py-2.5 rounded-lg text-xs font-semibold tracking-wide shadow-md transition-all flex items-center justify-center gap-2 ${
+                QUALITY_DETAILS[quality].isPremium
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              {QUALITY_DETAILS[quality].isPremium
+                ? "Unlock Premium Quality"
+                : "Download Render"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function EditorPage() {
   const store = useEditorStore();
 
@@ -45,7 +245,8 @@ export default function EditorPage() {
 
   return (
     <div className="h-screen w-full bg-neutral-950 text-neutral-50 flex flex-col overflow-hidden select-none">
-      <header className="h-14 border-b border-neutral-800 bg-neutral-900 flex items-center justify-between px-4 shrink-0 z-10">
+      {/* ELEVATED HEADER: Notice the relative and z-[100] classes here */}
+      <header className="relative z-[100] h-14 border-b border-neutral-800 bg-neutral-900 flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard"
@@ -68,9 +269,8 @@ export default function EditorPage() {
               className="hidden"
             />
           </label>
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
-            <MdDownload className="text-lg" /> Export
-          </button>
+
+          <ExportMenu />
         </div>
       </header>
 
@@ -117,7 +317,6 @@ export default function EditorPage() {
         </main>
 
         <aside className="w-[340px] bg-neutral-900 border-l border-neutral-800 flex flex-col shrink-0 overflow-y-auto z-10 custom-scrollbar">
-          {/* Presets */}
           <div className="p-6 border-b border-neutral-800 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
               <MdMovieFilter className="text-base text-blue-500" /> Cinematic
@@ -141,7 +340,6 @@ export default function EditorPage() {
             </div>
           </div>
 
-          {/* Optical FX Rack */}
           <div className="p-6 border-b border-neutral-800 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center justify-between">
               Optical FX Rack
@@ -151,7 +349,6 @@ export default function EditorPage() {
             </h3>
 
             <div className="flex flex-col gap-3">
-              {/* Shutter Drag */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
@@ -210,7 +407,6 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {/* Light Leak */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
@@ -244,7 +440,6 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {/* Aberration */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
@@ -278,7 +473,6 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {/* Vignette */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
@@ -312,7 +506,6 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {/* 1. Natural Matrix Blocks */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
@@ -369,7 +562,6 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {/* 2. Procedural ASCII Art (With Color Picker) */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
@@ -437,7 +629,6 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {/* CRT Scanlines */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
@@ -489,7 +680,6 @@ export default function EditorPage() {
             </div>
           </div>
 
-          {/* DaVinci 3-Way Wheels */}
           <div className="p-6 border-b border-neutral-800 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               3-Way Color Wheels
@@ -531,7 +721,6 @@ export default function EditorPage() {
             </div>
           </div>
 
-          {/* Basic Controls */}
           <div className="p-6 border-b border-neutral-800 flex flex-col gap-5">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               Manual Adjustment
