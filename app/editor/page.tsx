@@ -7,23 +7,31 @@ import {
   MdZoomIn,
   MdZoomOut,
   MdImage,
+  MdMovieFilter,
 } from "react-icons/md";
 import { useEditorStore } from "@/store/editorStore";
 import EditorCanvas from "@/components/editor/canvas/EditorCanvas";
+
+const PRESETS = [
+  "Default",
+  "Teal & Orange",
+  "Cyberpunk Neon",
+  "Film Noir",
+  "Vintage Matte",
+  "Matrix Digital",
+  "Faded Vignette",
+];
 
 export default function EditorPage() {
   const store = useEditorStore();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      store.setImageData(URL.createObjectURL(file));
-    }
+    if (file) store.setImageData(URL.createObjectURL(file));
   };
 
   return (
-    <div className="h-screen w-full bg-neutral-950 text-neutral-50 flex flex-col overflow-hidden">
-      {/* Top Navigation */}
+    <div className="h-screen w-full bg-neutral-950 text-neutral-50 flex flex-col overflow-hidden select-none">
       <header className="h-14 border-b border-neutral-800 bg-neutral-900 flex items-center justify-between px-4 shrink-0 z-10">
         <div className="flex items-center gap-4">
           <Link
@@ -33,7 +41,7 @@ export default function EditorPage() {
             <MdArrowBack className="text-xl" />
           </Link>
           <span className="text-sm font-medium text-neutral-300">
-            Working Title
+            DaVinci Web Engine
           </span>
         </div>
 
@@ -54,91 +62,242 @@ export default function EditorPage() {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Workspace Canvas */}
         <main className="flex-1 relative flex items-center justify-center bg-black overflow-hidden group">
           {!store.imageData ? (
             <div className="text-neutral-600 flex flex-col items-center gap-2">
-              <MdImage className="text-5xl opacity-50" />
-              <p className="text-sm">Please upload an image to begin.</p>
+              <MdImage className="text-5xl opacity-40" />
+              <p className="text-sm tracking-wide">
+                Load imagery assets to begin grading
+              </p>
             </div>
           ) : (
             <EditorCanvas />
           )}
 
-          {/* Alignment Grid Overlay (Visible during rotation) */}
           <div
             className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${store.isRotating ? "opacity-100" : "opacity-0"}`}
             style={{
               backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
+                "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)",
               backgroundSize: "33.33% 33.33%",
               backgroundPosition: "center center",
             }}
           />
 
-          {/* Floating Zoom Controls */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-neutral-900/80 backdrop-blur-md border border-neutral-700 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-neutral-900/90 backdrop-blur-md border border-neutral-800 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={() => store.setZoom((p) => Math.max(p - 10, 20))}
-              className="p-2 hover:bg-neutral-700 rounded-md text-neutral-300 hover:text-white transition-colors"
+              className="p-2 hover:bg-neutral-800 rounded-md text-neutral-300 hover:text-white transition-colors"
             >
               <MdZoomOut className="text-xl" />
             </button>
-            <span className="text-xs font-medium px-2 text-neutral-400">
-              Zoom
+            <span className="text-xs font-mono px-2 text-neutral-400">
+              ZOOM
             </span>
             <button
               onClick={() => store.setZoom((p) => Math.min(p + 10, 300))}
-              className="p-2 hover:bg-neutral-700 rounded-md text-neutral-300 hover:text-white transition-colors"
+              className="p-2 hover:bg-neutral-800 rounded-md text-neutral-300 hover:text-white transition-colors"
             >
               <MdZoomIn className="text-xl" />
             </button>
           </div>
         </main>
 
-        {/* Sidebar Controls */}
-        <aside className="w-80 bg-neutral-900 border-l border-neutral-800 flex flex-col shrink-0 overflow-y-auto z-10 custom-scrollbar">
-          {/* Transform Section */}
-          <div className="p-6 border-b border-neutral-800 flex flex-col gap-6">
-            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-              Transform
+        <aside className="w-[340px] bg-neutral-900 border-l border-neutral-800 flex flex-col shrink-0 overflow-y-auto z-10 custom-scrollbar">
+          {/* Presets */}
+          <div className="p-6 border-b border-neutral-800 flex flex-col gap-4">
+            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+              <MdMovieFilter className="text-base text-blue-500" /> Cinematic
+              Presets
             </h3>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Rotate</span>
-                <span className="text-blue-400">
-                  {(store.rotation * (180 / Math.PI)).toFixed(0)}°
-                </span>
-              </div>
-              <input
-                type="range"
-                min="-3.14159"
-                max="3.14159"
-                step="0.01"
-                value={store.rotation}
-                onChange={(e) => store.setRotation(parseFloat(e.target.value))}
-                onMouseDown={() => store.setIsRotating(true)}
-                onMouseUp={() => store.setIsRotating(false)}
-                onTouchStart={() => store.setIsRotating(true)}
-                onTouchEnd={() => store.setIsRotating(false)}
-                className="w-full accent-blue-500 cursor-pointer"
-              />
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((name) => (
+                <button
+                  key={name}
+                  onClick={() => store.applyPreset(name)}
+                  className={`py-1.5 px-3 text-[11px] font-medium rounded-md border transition-all ${
+                    store.activePreset === name
+                      ? "bg-blue-600 border-blue-500 text-white shadow-lg"
+                      : "bg-neutral-800/50 border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Cinematic FX Section */}
-          <div className="p-6 border-b border-neutral-800 flex flex-col gap-6">
+          {/* Optical Shaders (FX Rack) */}
+          <div className="p-6 border-b border-neutral-800 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center justify-between">
-              Cinematic FX
-              <span className="px-1.5 py-0.5 bg-blue-900/50 text-blue-400 rounded text-[10px]">
+              Optical FX Rack
+              <span className="px-1.5 py-0.5 bg-purple-900/50 text-purple-400 rounded text-[10px]">
                 PRO
               </span>
             </h3>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
+              {/* Vignette */}
+              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
+                  onClick={() => store.toggleFX("vignette")}
+                >
+                  <span className="text-xs font-medium">
+                    Cinematic Vignette
+                  </span>
+                  <div
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.vignette ? "bg-blue-500" : "bg-neutral-700"}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.vignette ? "translate-x-4" : "translate-x-0"}`}
+                    />
+                  </div>
+                </div>
+                {store.enabledFX.vignette && (
+                  <div className="p-3 border-t border-neutral-800 bg-neutral-900/50">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1.5"
+                      step="0.01"
+                      value={store.vignette}
+                      onChange={(e) =>
+                        store.setVignette(parseFloat(e.target.value))
+                      }
+                      className="w-full accent-blue-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Aberration */}
+              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
+                  onClick={() => store.toggleFX("aberration")}
+                >
+                  <span className="text-xs font-medium">
+                    RGB Split (Aberration)
+                  </span>
+                  <div
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.aberration ? "bg-fuchsia-500" : "bg-neutral-700"}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.aberration ? "translate-x-4" : "translate-x-0"}`}
+                    />
+                  </div>
+                </div>
+                {store.enabledFX.aberration && (
+                  <div className="p-3 border-t border-neutral-800 bg-neutral-900/50">
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.01"
+                      value={store.aberration}
+                      onChange={(e) =>
+                        store.setAberration(parseFloat(e.target.value))
+                      }
+                      className="w-full accent-fuchsia-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Hue Rotation */}
+              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
+                  onClick={() => store.toggleFX("hue")}
+                >
+                  <span className="text-xs font-medium">Hue Rotation</span>
+                  <div
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.hue ? "bg-gradient-to-r from-red-500 via-green-500 to-blue-500" : "bg-neutral-700"}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.hue ? "translate-x-4" : "translate-x-0"}`}
+                    />
+                  </div>
+                </div>
+                {store.enabledFX.hue && (
+                  <div className="p-3 border-t border-neutral-800 bg-neutral-900/50">
+                    <input
+                      type="range"
+                      min="-3.14"
+                      max="3.14"
+                      step="0.01"
+                      value={store.hue}
+                      onChange={(e) => store.setHue(parseFloat(e.target.value))}
+                      className="w-full accent-neutral-400"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Matrix Halftone */}
+              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
+                  onClick={() => store.toggleFX("matrix")}
+                >
+                  <span className="text-xs font-medium">Matrix Halftone</span>
+                  <div
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.matrix ? "bg-green-500" : "bg-neutral-700"}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.matrix ? "translate-x-4" : "translate-x-0"}`}
+                    />
+                  </div>
+                </div>
+                {store.enabledFX.matrix && (
+                  <div className="p-3 border-t border-neutral-800 bg-neutral-900/50 flex flex-col gap-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
+                        <span>Size</span>
+                        <span>{store.asciiSize.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1.5"
+                        step="0.01"
+                        value={store.asciiSize}
+                        onChange={(e) =>
+                          store.setAsciiSize(parseFloat(e.target.value))
+                        }
+                        className="w-full accent-green-500"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
+                        <span>Density</span>
+                        <span>{store.asciiDensity.toFixed(0)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="20"
+                        max="300"
+                        step="1"
+                        value={store.asciiDensity}
+                        onChange={(e) =>
+                          store.setAsciiDensity(parseFloat(e.target.value))
+                        }
+                        className="w-full accent-green-600"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Film Grain (Always Visible) */}
+            <div className="mt-4 flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
-                <span>Film Grain</span>
-                <span className="text-blue-400">{store.grain.toFixed(2)}</span>
+                <span>Film Grain Noise</span>
+                <span className="font-mono text-neutral-400">
+                  {store.grain.toFixed(2)}
+                </span>
               </div>
               <input
                 type="range"
@@ -150,91 +309,59 @@ export default function EditorPage() {
                 className="w-full accent-neutral-400 cursor-pointer"
               />
             </div>
-
-            <div className="flex flex-col gap-2 mt-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Matrix Effect (Size)</span>
-                <span className="text-blue-400">
-                  {store.asciiSize.toFixed(2)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1.5"
-                step="0.01"
-                value={store.asciiSize}
-                onChange={(e) => store.setAsciiSize(parseFloat(e.target.value))}
-                className="w-full accent-green-500 cursor-pointer"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Matrix Density</span>
-                <span className="text-blue-400">
-                  {store.asciiDensity.toFixed(0)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="20"
-                max="300"
-                step="1"
-                value={store.asciiDensity}
-                onChange={(e) =>
-                  store.setAsciiDensity(parseFloat(e.target.value))
-                }
-                className="w-full accent-green-500 cursor-pointer"
-              />
-            </div>
           </div>
 
-          {/* DaVinci 3-Way Color */}
-          <div className="p-6 border-b border-neutral-800 flex flex-col gap-6">
+          {/* DaVinci 3-Way Wheels */}
+          <div className="p-6 border-b border-neutral-800 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-              3-Way Color
+              3-Way Color Wheels
             </h3>
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs text-neutral-400">Lift (Shadows)</span>
+              <div className="flex flex-col items-center gap-1.5">
+                <span className="text-[10px] text-neutral-400">
+                  Lift (Shadow)
+                </span>
                 <input
                   type="color"
-                  defaultValue="#000000"
+                  value="#000000"
                   onChange={(e) => store.setLift(e.target.value)}
-                  className="w-10 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
+                  className="w-12 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
                 />
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs text-neutral-400">Gamma (Mid)</span>
+              <div className="flex flex-col items-center gap-1.5">
+                <span className="text-[10px] text-neutral-400">
+                  Gamma (Mid)
+                </span>
                 <input
                   type="color"
-                  defaultValue="#ffffff"
+                  value="#ffffff"
                   onChange={(e) => store.setGamma(e.target.value)}
-                  className="w-10 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
+                  className="w-12 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
                 />
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs text-neutral-400">Gain (High)</span>
+              <div className="flex flex-col items-center gap-1.5">
+                <span className="text-[10px] text-neutral-400">
+                  Gain (High)
+                </span>
                 <input
                   type="color"
-                  defaultValue="#ffffff"
+                  value="#ffffff"
                   onChange={(e) => store.setGain(e.target.value)}
-                  className="w-10 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
+                  className="w-12 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
                 />
               </div>
             </div>
           </div>
 
-          {/* Color Section */}
-          <div className="p-6 border-b border-neutral-800 flex flex-col gap-6">
+          {/* Basic Controls */}
+          <div className="p-6 border-b border-neutral-800 flex flex-col gap-5">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-              Basic Color
+              Manual Adjustment
             </h3>
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Temperature</span>
-                <span className="text-blue-400">
+                <span className="font-mono text-amber-400">
                   {store.temperature.toFixed(2)}
                 </span>
               </div>
@@ -253,7 +380,9 @@ export default function EditorPage() {
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Tint</span>
-                <span className="text-blue-400">{store.tint.toFixed(2)}</span>
+                <span className="font-mono text-fuchsia-400">
+                  {store.tint.toFixed(2)}
+                </span>
               </div>
               <input
                 type="range"
@@ -268,7 +397,7 @@ export default function EditorPage() {
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Saturation</span>
-                <span className="text-blue-400">
+                <span className="font-mono text-blue-400">
                   {store.saturation.toFixed(2)}
                 </span>
               </div>
@@ -284,17 +413,10 @@ export default function EditorPage() {
                 className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
-          </div>
-
-          {/* Light Section */}
-          <div className="p-6 border-b border-neutral-800 flex flex-col gap-6">
-            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-              Light
-            </h3>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 mt-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Exposure</span>
-                <span className="text-blue-400">
+                <span className="font-mono text-blue-400">
                   {store.exposure.toFixed(2)}
                 </span>
               </div>
@@ -311,7 +433,7 @@ export default function EditorPage() {
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Contrast</span>
-                <span className="text-blue-400">
+                <span className="font-mono text-blue-400">
                   {store.contrast.toFixed(2)}
                 </span>
               </div>
@@ -322,6 +444,34 @@ export default function EditorPage() {
                 step="0.01"
                 value={store.contrast}
                 onChange={(e) => store.setContrast(parseFloat(e.target.value))}
+                className="w-full accent-blue-500 cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* Transform */}
+          <div className="p-6 border-b border-neutral-800 flex flex-col gap-4">
+            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+              Transform
+            </h3>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-xs font-medium">
+                <span>Rotation Axis</span>
+                <span className="font-mono text-blue-400">
+                  {(store.rotation * (180 / Math.PI)).toFixed(0)}°
+                </span>
+              </div>
+              <input
+                type="range"
+                min="-3.14159"
+                max="3.14159"
+                step="0.01"
+                value={store.rotation}
+                onChange={(e) => store.setRotation(parseFloat(e.target.value))}
+                onMouseDown={() => store.setIsRotating(true)}
+                onMouseUp={() => store.setIsRotating(false)}
+                onTouchStart={() => store.setIsRotating(true)}
+                onTouchEnd={() => store.setIsRotating(false)}
                 className="w-full accent-blue-500 cursor-pointer"
               />
             </div>

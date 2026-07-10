@@ -24,6 +24,9 @@ const ColorGradeMaterial = shaderMaterial(
     uGrain: 0.0,
     uAsciiSize: 0.0,
     uAsciiDensity: 100.0,
+    uVignette: 0.0,
+    uAberration: 0.0,
+    uHue: 0.0,
   },
   `
     varying vec2 vUv;
@@ -34,73 +37,72 @@ const ColorGradeMaterial = shaderMaterial(
   `,
   `
     uniform sampler2D uTexture;
-    uniform float uExposure;
-    uniform float uContrast;
-    uniform float uSaturation;
-    uniform float uTemperature;
-    uniform float uTint;
-    
-    uniform vec3 uLift;
-    uniform vec3 uGamma;
-    uniform vec3 uGain;
-    
-    uniform float uGrain;
-    uniform float uAsciiSize;
-    uniform float uAsciiDensity;
+    uniform float uExposure; uniform float uContrast; uniform float uSaturation;
+    uniform float uTemperature; uniform float uTint;
+    uniform vec3 uLift; uniform vec3 uGamma; uniform vec3 uGain;
+    uniform float uGrain; uniform float uAsciiSize; uniform float uAsciiDensity;
+    uniform float uVignette; uniform float uAberration; uniform float uHue;
     
     varying vec2 vUv;
 
-    // Pseudo-random noise function for Film Grain
-    float random(vec2 st) {
-        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+    float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
+
+    vec3 hueShift(vec3 color, float hue) {
+        const vec3 k = vec3(0.57735, 0.57735, 0.57735);
+        float cosAngle = cos(hue);
+        return vec3(color * cosAngle + cross(k, color) * sin(hue) + k * dot(k, color) * (1.0 - cosAngle));
     }
 
     void main() {
       vec2 sampleUv = vUv;
       
-      // 1. Matrix Base Pixelation
       if (uAsciiSize > 0.0) {
         vec2 pixelSize = vec2(1.0 / uAsciiDensity);
         sampleUv = floor(vUv / pixelSize) * pixelSize;
       }
 
-      vec4 texColor = texture2D(uTexture, sampleUv);
-      vec3 color = texColor.rgb;
+      vec2 rOffset = vec2(uAberration * 0.01, 0.0);
+      vec2 bOffset = vec2(-uAberration * 0.01, 0.0);
+      
+      // Fix: Sample RGB individually, and grab Alpha from the center point
+      float r = texture2D(uTexture, sampleUv + rOffset).r;
+      float g = texture2D(uTexture, sampleUv).g;
+      float b = texture2D(uTexture, sampleUv + bOffset).b;
+      float a = texture2D(uTexture, sampleUv).a; 
+      
+      vec3 color = vec3(r, g, b);
 
-      // 2. Base Math (Exposure, Contrast, Temp, Tint)
       color *= exp2(uExposure);
       color = (color - 0.5) * uContrast + 0.5;
-      color.r += uTemperature; 
-      color.b -= uTemperature; 
-      color.g += uTint;
+      color.r += uTemperature; color.b -= uTemperature; color.g += uTint;
+      
+      if (uHue != 0.0) { color = hueShift(color, uHue); }
 
-      // 3. DaVinci 3-Way Wheels (Gain, Lift, Gamma)
       color = color * uGain;
       color = color + uLift * (1.0 - color);
       color = pow(max(color, vec3(0.0)), 1.0 / max(uGamma, vec3(0.001)));
 
-      // 4. Matrix/Halftone Shape Masking
       if (uAsciiSize > 0.0) {
         float luma = dot(color, vec3(0.299, 0.587, 0.114));
         vec2 cellUv = fract(vUv * uAsciiDensity) - 0.5;
-        float dist = length(cellUv);
-        
         float radius = luma * 0.7 * uAsciiSize;
-        float shape = 1.0 - smoothstep(radius - 0.05, radius + 0.05, dist);
+        float shape = 1.0 - smoothstep(radius - 0.05, radius + 0.05, length(cellUv));
         color = color * shape;
       }
 
-      // 5. Film Grain
-      if (uGrain > 0.0) {
-        float noise = (random(vUv) - 0.5) * uGrain;
-        color += noise;
+      if (uGrain > 0.0) { color += (random(vUv) - 0.5) * uGrain; }
+
+      if (uVignette > 0.0) {
+        float dist = distance(vUv, vec2(0.5));
+        float vignetteEffect = smoothstep(0.8, 0.2, dist * (1.0 + uVignette));
+        color *= vignetteEffect;
       }
 
-      // 6. Final Saturation
       float finalLuma = dot(color, vec3(0.299, 0.587, 0.114));
       color = mix(vec3(finalLuma), color, uSaturation);
-
-      gl_FragColor = vec4(color, texColor.a);
+      
+      // Fix: Use the local 'a' variable we captured earlier
+      gl_FragColor = vec4(color, a);
     }
   `,
 );
@@ -110,8 +112,6 @@ extend({ ColorGradeMaterial });
 function ImagePlane({ imageUrl }: { imageUrl: string }) {
   const texture = useTexture(imageUrl);
   const state = useEditorStore();
-
-  // Fix Typescript error by casting image type
   const image = texture.image as HTMLImageElement;
   const aspect = image.width / image.height;
 
@@ -130,8 +130,11 @@ function ImagePlane({ imageUrl }: { imageUrl: string }) {
         uGamma={new THREE.Vector3(...state.gamma)}
         uGain={new THREE.Vector3(...state.gain)}
         uGrain={state.grain}
-        uAsciiSize={state.asciiSize}
+        uAsciiSize={state.enabledFX.matrix ? state.asciiSize : 0.0}
         uAsciiDensity={state.asciiDensity}
+        uVignette={state.enabledFX.vignette ? state.vignette : 0.0}
+        uAberration={state.enabledFX.aberration ? state.aberration : 0.0}
+        uHue={state.enabledFX.hue ? state.hue : 0.0}
       />
     </mesh>
   );
@@ -139,7 +142,6 @@ function ImagePlane({ imageUrl }: { imageUrl: string }) {
 
 export default function EditorCanvas() {
   const { imageData, zoom } = useEditorStore();
-
   if (!imageData) return null;
 
   return (
