@@ -22,8 +22,11 @@ const ColorGradeMaterial = shaderMaterial(
     uGamma: new THREE.Vector3(1, 1, 1),
     uGain: new THREE.Vector3(1, 1, 1),
     uGrain: 0.0,
+    uMatrixSize: 0.0,
+    uMatrixDensity: 100.0,
     uAsciiSize: 0.0,
     uAsciiDensity: 100.0,
+    uAsciiColor: new THREE.Vector3(0, 1, 0),
     uVignette: 0.0,
     uAberration: 0.0,
     uHue: 0.0,
@@ -40,7 +43,9 @@ const ColorGradeMaterial = shaderMaterial(
     uniform sampler2D uTexture;
     uniform float uExposure; uniform float uContrast; uniform float uSaturation; uniform float uTemperature; uniform float uTint;
     uniform vec3 uLift; uniform vec3 uGamma; uniform vec3 uGain;
-    uniform float uGrain; uniform float uAsciiSize; uniform float uAsciiDensity;
+    uniform float uGrain; 
+    uniform float uMatrixSize; uniform float uMatrixDensity;
+    uniform float uAsciiSize; uniform float uAsciiDensity; uniform vec3 uAsciiColor;
     uniform float uVignette; uniform float uAberration; uniform float uHue;
     uniform float uBlurStrength; uniform float uBlurAngle; uniform float uLightLeak; uniform float uScanlines;
     varying vec2 vUv;
@@ -55,19 +60,21 @@ const ColorGradeMaterial = shaderMaterial(
     void main() {
       vec2 sampleUv = vUv;
       
-      if (uAsciiSize > 0.0) {
-        vec2 pixelSize = vec2(1.0 / uAsciiDensity);
+      float activeDensity = 0.0;
+      if (uAsciiSize > 0.0) activeDensity = uAsciiDensity;
+      else if (uMatrixSize > 0.0) activeDensity = uMatrixDensity;
+
+      if (activeDensity > 0.0) {
+        vec2 pixelSize = vec2(1.0 / activeDensity);
         sampleUv = floor(vUv / pixelSize) * pixelSize;
       }
 
-      // Base Colors & Shutter Drag (Directional Blur)
       vec3 color = vec3(0.0);
       float a = 1.0;
 
       if (uBlurStrength > 0.0) {
         vec2 dir = vec2(cos(uBlurAngle), sin(uBlurAngle)) * uBlurStrength;
         vec4 sum = vec4(0.0);
-        // Sample 9 points along the line of motion
         for (float i = -4.0; i <= 4.0; i++) {
            sum += texture2D(uTexture, sampleUv + dir * (i / 8.0));
         }
@@ -82,37 +89,53 @@ const ColorGradeMaterial = shaderMaterial(
         a = texture2D(uTexture, sampleUv).a;
       }
 
-      // Basic Grading Math
       color *= exp2(uExposure);
       color = (color - 0.5) * uContrast + 0.5;
       color.r += uTemperature; color.b -= uTemperature; color.g += uTint;
       if (uHue != 0.0) { color = hueShift(color, uHue); }
-
-      // 3-Way Wheels
       color = color * uGain;
       color = color + uLift * (1.0 - color);
       color = pow(max(color, vec3(0.0)), 1.0 / max(uGamma, vec3(0.001)));
 
-      // Matrix/ASCII Blocks Masking
-      if (uAsciiSize > 0.0) {
-        float luma = dot(color, vec3(0.299, 0.587, 0.114));
-        vec2 cellUv = fract(vUv * uAsciiDensity) - 0.5;
-        // Blocky logic instead of circles for true terminal feel
-        float block = max(abs(cellUv.x), abs(cellUv.y));
-        float radius = luma * 0.5 * uAsciiSize;
-        float shape = 1.0 - step(radius, block);
+      float luma = dot(color, vec3(0.299, 0.587, 0.114));
+
+      // 1. Natural Matrix Halftone Dots (Restored to Circles!)
+      if (uMatrixSize > 0.0) {
+        vec2 cellUv = fract(vUv * uMatrixDensity) - 0.5;
+        // Use true distance from center to create a circle
+        float dist = length(cellUv);
+        float radius = luma * 0.7 * uMatrixSize; 
+        // Smoothstep makes the edges of the dots soft and natural
+        float shape = 1.0 - smoothstep(radius - 0.05, radius + 0.05, dist);
         color = color * shape;
       }
 
-      // Aesthetic Edge Light Leak (Film burn)
+      // 2. Procedural ASCII Characters
+      if (uAsciiSize > 0.0) {
+        vec2 cellUv = (fract(vUv * uAsciiDensity) - 0.5) / max(uAsciiSize, 0.01);
+        float charShape = 0.0;
+        
+        if (abs(cellUv.x) < 0.5 && abs(cellUv.y) < 0.5) {
+            if (luma > 0.8) {
+                charShape = step(max(abs(cellUv.x), abs(cellUv.y)), 0.4);
+            } else if (luma > 0.6) {
+                charShape = max(0.0, step(max(abs(cellUv.x), abs(cellUv.y)), 0.4) - step(max(abs(cellUv.x), abs(cellUv.y)), 0.2));
+            } else if (luma > 0.4) {
+                charShape = max(step(abs(cellUv.x), 0.1) * step(abs(cellUv.y), 0.4), step(abs(cellUv.y), 0.1) * step(abs(cellUv.x), 0.4));
+            } else if (luma > 0.2) {
+                charShape = 1.0 - step(0.15, length(cellUv));
+            }
+        }
+        color = uAsciiColor * charShape; 
+      }
+
       if (uLightLeak > 0.0) {
-        float leakX = max(0.0, 1.0 - vUv.x * 2.5); // Left edge
-        float leakY = max(0.0, vUv.y * 2.0 - 1.0); // Top edge
+        float leakX = max(0.0, 1.0 - vUv.x * 2.5);
+        float leakY = max(0.0, vUv.y * 2.0 - 1.0);
         vec3 leakColor = vec3(1.0, 0.4, 0.1) * (leakX + leakY) * uLightLeak;
         color += leakColor;
       }
 
-      // CRT Scanlines
       if (uScanlines > 0.0) {
         float scanline = sin(vUv.y * 800.0) * 0.04 * uScanlines;
         color -= scanline;
@@ -156,8 +179,11 @@ function ImagePlane({ imageUrl }: { imageUrl: string }) {
         uGamma={new THREE.Vector3(...state.gamma)}
         uGain={new THREE.Vector3(...state.gain)}
         uGrain={state.grain}
-        uAsciiSize={state.enabledFX.matrix ? state.asciiSize : 0.0}
+        uMatrixSize={state.enabledFX.matrix ? state.matrixSize : 0.0}
+        uMatrixDensity={state.matrixDensity}
+        uAsciiSize={state.enabledFX.ascii ? state.asciiSize : 0.0}
         uAsciiDensity={state.asciiDensity}
+        uAsciiColor={new THREE.Vector3(...state.asciiColor)}
         uVignette={state.enabledFX.vignette ? state.vignette : 0.0}
         uAberration={state.enabledFX.aberration ? state.aberration : 0.0}
         uHue={state.enabledFX.hue ? state.hue : 0.0}

@@ -17,10 +17,23 @@ const PRESETS = [
   "Teal & Orange",
   "Cyberpunk Neon",
   "Film Noir",
+  "Terminal ASCII",
   "Matrix Digital",
   "Dizzy Motion",
   "Vintage Leak",
 ];
+
+const rgbToHex = (r: number, g: number, b: number) => {
+  return (
+    "#" +
+    [r, g, b]
+      .map((x) => {
+        const hex = Math.round(x * 255).toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
+      })
+      .join("")
+  );
+};
 
 export default function EditorPage() {
   const store = useEditorStore();
@@ -231,36 +244,6 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {/* Hue Rotation - Uniform color fix */}
-              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
-                <div
-                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
-                  onClick={() => store.toggleFX("hue")}
-                >
-                  <span className="text-xs font-medium">Hue Rotation</span>
-                  <div
-                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.hue ? "bg-indigo-500" : "bg-neutral-700"}`}
-                  >
-                    <div
-                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.hue ? "translate-x-4" : "translate-x-0"}`}
-                    />
-                  </div>
-                </div>
-                {store.enabledFX.hue && (
-                  <div className="p-3 border-t border-neutral-800 bg-neutral-900/50">
-                    <input
-                      type="range"
-                      min="-3.14"
-                      max="3.14"
-                      step="0.01"
-                      value={store.hue}
-                      onChange={(e) => store.setHue(parseFloat(e.target.value))}
-                      className="w-full accent-indigo-500"
-                    />
-                  </div>
-                )}
-              </div>
-
               {/* Aberration */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
@@ -329,17 +312,17 @@ export default function EditorPage() {
                 )}
               </div>
 
-              {/* Matrix Halftone */}
+              {/* 1. Natural Matrix Blocks */}
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
                   onClick={() => store.toggleFX("matrix")}
                 >
                   <span className="text-xs font-medium">
-                    Digital Matrix Blocks
+                    Digital Matrix (Natural)
                   </span>
                   <div
-                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.matrix ? "bg-green-500" : "bg-neutral-700"}`}
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.matrix ? "bg-teal-500" : "bg-neutral-700"}`}
                   >
                     <div
                       className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.matrix ? "translate-x-4" : "translate-x-0"}`}
@@ -351,6 +334,74 @@ export default function EditorPage() {
                     <div>
                       <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
                         <span>Size</span>
+                        <span>{store.matrixSize.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1.5"
+                        step="0.01"
+                        value={store.matrixSize}
+                        onChange={(e) =>
+                          store.setMatrixSize(parseFloat(e.target.value))
+                        }
+                        className="w-full accent-teal-500"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
+                        <span>Density</span>
+                        <span>{store.matrixDensity.toFixed(0)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="20"
+                        max="300"
+                        step="1"
+                        value={store.matrixDensity}
+                        onChange={(e) =>
+                          store.setMatrixDensity(parseFloat(e.target.value))
+                        }
+                        className="w-full accent-teal-600"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Procedural ASCII Art (With Color Picker) */}
+              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
+                  onClick={() => store.toggleFX("ascii")}
+                >
+                  <span className="text-xs font-medium">
+                    Terminal ASCII Art
+                  </span>
+                  <div
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.ascii ? "bg-green-500" : "bg-neutral-700"}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.ascii ? "translate-x-4" : "translate-x-0"}`}
+                    />
+                  </div>
+                </div>
+                {store.enabledFX.ascii && (
+                  <div className="p-4 border-t border-neutral-800 bg-neutral-900/50 flex flex-col gap-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
+                        <span>Terminal Ink Color</span>
+                      </div>
+                      <input
+                        type="color"
+                        value={rgbToHex(...store.asciiColor)}
+                        onChange={(e) => store.setAsciiColor(e.target.value)}
+                        className="w-full h-8 p-0 border-0 rounded cursor-pointer bg-transparent"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
+                        <span>Character Scale</span>
                         <span>{store.asciiSize.toFixed(2)}</span>
                       </div>
                       <input
@@ -419,7 +470,6 @@ export default function EditorPage() {
               </div>
             </div>
 
-            {/* Film Grain (Always Visible Base Layer) */}
             <div className="mt-4 flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Film Grain Noise</span>
@@ -451,7 +501,7 @@ export default function EditorPage() {
                 </span>
                 <input
                   type="color"
-                  value="#000000"
+                  value={rgbToHex(...store.lift)}
                   onChange={(e) => store.setLift(e.target.value)}
                   className="w-12 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
                 />
@@ -462,7 +512,7 @@ export default function EditorPage() {
                 </span>
                 <input
                   type="color"
-                  value="#ffffff"
+                  value={rgbToHex(...store.gamma)}
                   onChange={(e) => store.setGamma(e.target.value)}
                   className="w-12 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
                 />
@@ -473,7 +523,7 @@ export default function EditorPage() {
                 </span>
                 <input
                   type="color"
-                  value="#ffffff"
+                  value={rgbToHex(...store.gain)}
                   onChange={(e) => store.setGain(e.target.value)}
                   className="w-12 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
                 />
@@ -572,34 +622,6 @@ export default function EditorPage() {
                 step="0.01"
                 value={store.contrast}
                 onChange={(e) => store.setContrast(parseFloat(e.target.value))}
-                className="w-full accent-blue-500 cursor-pointer"
-              />
-            </div>
-          </div>
-
-          {/* Transform */}
-          <div className="p-6 border-b border-neutral-800 flex flex-col gap-4">
-            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-              Transform
-            </h3>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Rotation Axis</span>
-                <span className="font-mono text-blue-400">
-                  {(store.rotation * (180 / Math.PI)).toFixed(0)}°
-                </span>
-              </div>
-              <input
-                type="range"
-                min="-3.14159"
-                max="3.14159"
-                step="0.01"
-                value={store.rotation}
-                onChange={(e) => store.setRotation(parseFloat(e.target.value))}
-                onMouseDown={() => store.setIsRotating(true)}
-                onMouseUp={() => store.setIsRotating(false)}
-                onTouchStart={() => store.setIsRotating(true)}
-                onTouchEnd={() => store.setIsRotating(false)}
                 className="w-full accent-blue-500 cursor-pointer"
               />
             </div>

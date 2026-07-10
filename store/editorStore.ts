@@ -19,20 +19,23 @@ interface EditorState {
   gamma: [number, number, number];
   gain: [number, number, number];
 
-  // FX States
   grain: number;
+  matrixSize: number;
+  matrixDensity: number;
   asciiSize: number;
   asciiDensity: number;
+  asciiColor: [number, number, number];
   vignette: number;
   aberration: number;
   hue: number;
   blurStrength: number;
-  blurAngle: number; // Shutter Drag
-  lightLeak: number; // Film Edge Burn
-  scanlines: number; // CRT Effect
+  blurAngle: number;
+  lightLeak: number;
+  scanlines: number;
 
   enabledFX: {
     matrix: boolean;
+    ascii: boolean;
     vignette: boolean;
     aberration: boolean;
     hue: boolean;
@@ -47,7 +50,6 @@ interface EditorState {
   imageData: string | null;
   activePreset: string;
 
-  // Actions
   setExposure: (val: number) => void;
   setContrast: (val: number) => void;
   setSaturation: (val: number) => void;
@@ -57,8 +59,11 @@ interface EditorState {
   setGamma: (hex: string) => void;
   setGain: (hex: string) => void;
   setGrain: (val: number) => void;
+  setMatrixSize: (val: number) => void;
+  setMatrixDensity: (val: number) => void;
   setAsciiSize: (val: number) => void;
   setAsciiDensity: (val: number) => void;
+  setAsciiColor: (hex: string) => void;
   setVignette: (val: number) => void;
   setAberration: (val: number) => void;
   setHue: (val: number) => void;
@@ -85,8 +90,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   gamma: [1, 1, 1],
   gain: [1, 1, 1],
   grain: 0.0,
+  matrixSize: 0.0,
+  matrixDensity: 100.0,
   asciiSize: 0.0,
   asciiDensity: 100.0,
+  asciiColor: [0.0, 1.0, 0.0],
   vignette: 0.0,
   aberration: 0.0,
   hue: 0.0,
@@ -97,6 +105,7 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   enabledFX: {
     matrix: false,
+    ascii: false,
     vignette: false,
     aberration: false,
     hue: false,
@@ -105,7 +114,8 @@ export const useEditorStore = create<EditorState>((set) => ({
     crt: false,
   },
 
-  zoom: 80,
+  // INCREASED DEFAULT ZOOM TO 120 (Was 80)
+  zoom: 120,
   rotation: 0,
   isRotating: false,
   imageData: null,
@@ -121,9 +131,15 @@ export const useEditorStore = create<EditorState>((set) => ({
   setGain: (hex) => set({ gain: hexToRgb(hex), activePreset: "Custom" }),
 
   setGrain: (grain) => set({ grain, activePreset: "Custom" }),
+  setMatrixSize: (matrixSize) => set({ matrixSize, activePreset: "Custom" }),
+  setMatrixDensity: (matrixDensity) =>
+    set({ matrixDensity, activePreset: "Custom" }),
   setAsciiSize: (asciiSize) => set({ asciiSize, activePreset: "Custom" }),
   setAsciiDensity: (asciiDensity) =>
     set({ asciiDensity, activePreset: "Custom" }),
+  setAsciiColor: (hex) =>
+    set({ asciiColor: hexToRgb(hex), activePreset: "Custom" }),
+
   setVignette: (vignette) => set({ vignette, activePreset: "Custom" }),
   setAberration: (aberration) => set({ aberration, activePreset: "Custom" }),
   setHue: (hue) => set({ hue, activePreset: "Custom" }),
@@ -160,8 +176,9 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   setImageData: (url) =>
     set({
+      // ALSO SET NEW DEFAULT ZOOM HERE SO IT APPLIES ON NEW UPLOADS
       imageData: url,
-      zoom: 80,
+      zoom: 120,
       rotation: 0,
       activePreset: "Default",
       exposure: 0,
@@ -173,8 +190,11 @@ export const useEditorStore = create<EditorState>((set) => ({
       gamma: [1, 1, 1],
       gain: [1, 1, 1],
       grain: 0,
+      matrixSize: 0,
+      matrixDensity: 100,
       asciiSize: 0,
       asciiDensity: 100,
+      asciiColor: [0.0, 1.0, 0.0],
       vignette: 0,
       aberration: 0,
       hue: 0,
@@ -184,6 +204,7 @@ export const useEditorStore = create<EditorState>((set) => ({
       scanlines: 0,
       enabledFX: {
         matrix: false,
+        ascii: false,
         vignette: false,
         aberration: false,
         hue: false,
@@ -206,8 +227,11 @@ export const useEditorStore = create<EditorState>((set) => ({
         gamma: [1, 1, 1] as [number, number, number],
         gain: [1, 1, 1] as [number, number, number],
         grain: 0,
+        matrixSize: 0,
+        matrixDensity: 100,
         asciiSize: 0,
         asciiDensity: 100,
+        asciiColor: [0.0, 1.0, 0.0] as [number, number, number],
         vignette: 0,
         aberration: 0,
         hue: 0,
@@ -217,6 +241,7 @@ export const useEditorStore = create<EditorState>((set) => ({
         scanlines: 0,
         enabledFX: {
           matrix: false,
+          ascii: false,
           vignette: false,
           aberration: false,
           hue: false,
@@ -255,12 +280,21 @@ export const useEditorStore = create<EditorState>((set) => ({
         case "Matrix Digital":
           return {
             ...base,
-            asciiSize: 0.95,
-            asciiDensity: 140,
+            matrixSize: 0.95,
+            matrixDensity: 140,
             tint: -0.2,
             saturation: 0.8,
             scanlines: 0.8,
             enabledFX: { ...base.enabledFX, matrix: true, crt: true },
+          };
+        case "Terminal ASCII":
+          return {
+            ...base,
+            asciiSize: 1.0,
+            asciiDensity: 100,
+            asciiColor: [0.0, 1.0, 0.0],
+            scanlines: 0.5,
+            enabledFX: { ...base.enabledFX, ascii: true, crt: true },
           };
         case "Dizzy Motion":
           return {
