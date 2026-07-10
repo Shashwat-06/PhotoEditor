@@ -10,7 +10,7 @@ const hexToRgb = (hex: string): [number, number, number] => {
 };
 
 interface EditorState {
-  title: string; // Project Title
+  title: string;
   exposure: number;
   contrast: number;
   saturation: number;
@@ -78,12 +78,14 @@ interface EditorState {
   setRotation: (val: number) => void;
   setIsRotating: (val: boolean) => void;
   setZoom: (val: number | ((prev: number) => number)) => void;
-  setImageData: (url: string) => void;
+
+  // Added isMobile parameter to handle responsive default zoom
+  setImageData: (url: string, isMobile?: boolean) => void;
   applyPreset: (presetName: string) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
-  title: "Untitled project", // Default title
+  title: "Untitled project",
   exposure: 0.0,
   contrast: 1.0,
   saturation: 1.0,
@@ -177,10 +179,11 @@ export const useEditorStore = create<EditorState>((set) => ({
       zoom: typeof val === "function" ? val(state.zoom) : val,
     })),
 
-  setImageData: (url) =>
+  // Sets a smaller zoom automatically if the user is on a mobile device
+  setImageData: (url, isMobile = false) =>
     set({
       imageData: url,
-      zoom: 120,
+      zoom: isMobile ? 65 : 120,
       rotation: 0,
       activePreset: "Default",
       exposure: 0,
