@@ -12,33 +12,12 @@ import { useEditorStore } from "@/store/editorStore";
 import EditorCanvas from "@/components/editor/canvas/EditorCanvas";
 
 export default function EditorPage() {
-  const {
-    exposure,
-    setExposure,
-    contrast,
-    setContrast,
-    saturation,
-    setSaturation,
-    temperature,
-    setTemperature,
-    tint,
-    setTint,
-    rotation,
-    setRotation,
-    setIsRotating,
-    isRotating,
-    setLift,
-    setGamma,
-    setGain,
-    setZoom,
-    setImageData,
-    imageData,
-  } = useEditorStore();
+  const store = useEditorStore();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageData(URL.createObjectURL(file));
+      store.setImageData(URL.createObjectURL(file));
     }
   };
 
@@ -77,7 +56,7 @@ export default function EditorPage() {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Workspace Canvas */}
         <main className="flex-1 relative flex items-center justify-center bg-black overflow-hidden group">
-          {!imageData ? (
+          {!store.imageData ? (
             <div className="text-neutral-600 flex flex-col items-center gap-2">
               <MdImage className="text-5xl opacity-50" />
               <p className="text-sm">Please upload an image to begin.</p>
@@ -86,21 +65,21 @@ export default function EditorPage() {
             <EditorCanvas />
           )}
 
-          {/* Canva-Style Snapping Grid (Visible only when rotating) */}
+          {/* Alignment Grid Overlay (Visible during rotation) */}
           <div
-            className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${isRotating ? "opacity-100" : "opacity-0"}`}
+            className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${store.isRotating ? "opacity-100" : "opacity-0"}`}
             style={{
               backgroundImage:
                 "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
-              backgroundSize: "33.33% 33.33%", // Creates a Rule of Thirds grid
+              backgroundSize: "33.33% 33.33%",
               backgroundPosition: "center center",
             }}
           />
 
-          {/* Floating Canvas Toolbar (Zoom) */}
+          {/* Floating Zoom Controls */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-neutral-900/80 backdrop-blur-md border border-neutral-700 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
             <button
-              onClick={() => setZoom((p) => Math.max(p - 10, 20))}
+              onClick={() => store.setZoom((p) => Math.max(p - 10, 20))}
               className="p-2 hover:bg-neutral-700 rounded-md text-neutral-300 hover:text-white transition-colors"
             >
               <MdZoomOut className="text-xl" />
@@ -109,7 +88,7 @@ export default function EditorPage() {
               Zoom
             </span>
             <button
-              onClick={() => setZoom((p) => Math.min(p + 10, 300))}
+              onClick={() => store.setZoom((p) => Math.min(p + 10, 300))}
               className="p-2 hover:bg-neutral-700 rounded-md text-neutral-300 hover:text-white transition-colors"
             >
               <MdZoomIn className="text-xl" />
@@ -118,7 +97,7 @@ export default function EditorPage() {
         </main>
 
         {/* Sidebar Controls */}
-        <aside className="w-80 bg-neutral-900 border-l border-neutral-800 flex flex-col shrink-0 overflow-y-auto z-10">
+        <aside className="w-80 bg-neutral-900 border-l border-neutral-800 flex flex-col shrink-0 overflow-y-auto z-10 custom-scrollbar">
           {/* Transform Section */}
           <div className="p-6 border-b border-neutral-800 flex flex-col gap-6">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
@@ -128,7 +107,7 @@ export default function EditorPage() {
               <div className="flex justify-between text-xs font-medium">
                 <span>Rotate</span>
                 <span className="text-blue-400">
-                  {(rotation * (180 / Math.PI)).toFixed(0)}°
+                  {(store.rotation * (180 / Math.PI)).toFixed(0)}°
                 </span>
               </div>
               <input
@@ -136,30 +115,93 @@ export default function EditorPage() {
                 min="-3.14159"
                 max="3.14159"
                 step="0.01"
-                value={rotation}
-                onChange={(e) => setRotation(parseFloat(e.target.value))}
-                onMouseDown={() => setIsRotating(true)}
-                onMouseUp={() => setIsRotating(false)}
-                onTouchStart={() => setIsRotating(true)}
-                onTouchEnd={() => setIsRotating(false)}
+                value={store.rotation}
+                onChange={(e) => store.setRotation(parseFloat(e.target.value))}
+                onMouseDown={() => store.setIsRotating(true)}
+                onMouseUp={() => store.setIsRotating(false)}
+                onTouchStart={() => store.setIsRotating(true)}
+                onTouchEnd={() => store.setIsRotating(false)}
                 className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
           </div>
 
-          {/* DaVinci 3-Way Color Wheels */}
+          {/* Cinematic FX Section */}
           <div className="p-6 border-b border-neutral-800 flex flex-col gap-6">
-            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-              3-Way Color (MVP Pickers)
+            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center justify-between">
+              Cinematic FX
+              <span className="px-1.5 py-0.5 bg-blue-900/50 text-blue-400 rounded text-[10px]">
+                PRO
+              </span>
             </h3>
 
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-xs font-medium">
+                <span>Film Grain</span>
+                <span className="text-blue-400">{store.grain.toFixed(2)}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="0.5"
+                step="0.01"
+                value={store.grain}
+                onChange={(e) => store.setGrain(parseFloat(e.target.value))}
+                className="w-full accent-neutral-400 cursor-pointer"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 mt-2">
+              <div className="flex justify-between text-xs font-medium">
+                <span>Matrix Effect (Size)</span>
+                <span className="text-blue-400">
+                  {store.asciiSize.toFixed(2)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1.5"
+                step="0.01"
+                value={store.asciiSize}
+                onChange={(e) => store.setAsciiSize(parseFloat(e.target.value))}
+                className="w-full accent-green-500 cursor-pointer"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-xs font-medium">
+                <span>Matrix Density</span>
+                <span className="text-blue-400">
+                  {store.asciiDensity.toFixed(0)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="20"
+                max="300"
+                step="1"
+                value={store.asciiDensity}
+                onChange={(e) =>
+                  store.setAsciiDensity(parseFloat(e.target.value))
+                }
+                className="w-full accent-green-500 cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* DaVinci 3-Way Color */}
+          <div className="p-6 border-b border-neutral-800 flex flex-col gap-6">
+            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+              3-Way Color
+            </h3>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs text-neutral-400">Lift (Shadows)</span>
                 <input
                   type="color"
                   defaultValue="#000000"
-                  onChange={(e) => setLift(e.target.value)}
+                  onChange={(e) => store.setLift(e.target.value)}
                   className="w-10 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
                 />
               </div>
@@ -168,7 +210,7 @@ export default function EditorPage() {
                 <input
                   type="color"
                   defaultValue="#ffffff"
-                  onChange={(e) => setGamma(e.target.value)}
+                  onChange={(e) => store.setGamma(e.target.value)}
                   className="w-10 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
                 />
               </div>
@@ -177,7 +219,7 @@ export default function EditorPage() {
                 <input
                   type="color"
                   defaultValue="#ffffff"
-                  onChange={(e) => setGain(e.target.value)}
+                  onChange={(e) => store.setGain(e.target.value)}
                   className="w-10 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
                 />
               </div>
@@ -189,49 +231,56 @@ export default function EditorPage() {
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               Basic Color
             </h3>
-            {/* Temp, Tint, Saturation Sliders... (Kept identical to previous step) */}
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Temperature</span>
-                <span className="text-blue-400">{temperature.toFixed(2)}</span>
+                <span className="text-blue-400">
+                  {store.temperature.toFixed(2)}
+                </span>
               </div>
               <input
                 type="range"
                 min="-0.5"
                 max="0.5"
                 step="0.01"
-                value={temperature}
-                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                value={store.temperature}
+                onChange={(e) =>
+                  store.setTemperature(parseFloat(e.target.value))
+                }
                 className="w-full accent-amber-500 cursor-pointer"
               />
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Tint</span>
-                <span className="text-blue-400">{tint.toFixed(2)}</span>
+                <span className="text-blue-400">{store.tint.toFixed(2)}</span>
               </div>
               <input
                 type="range"
                 min="-0.5"
                 max="0.5"
                 step="0.01"
-                value={tint}
-                onChange={(e) => setTint(parseFloat(e.target.value))}
+                value={store.tint}
+                onChange={(e) => store.setTint(parseFloat(e.target.value))}
                 className="w-full accent-fuchsia-500 cursor-pointer"
               />
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Saturation</span>
-                <span className="text-blue-400">{saturation.toFixed(2)}</span>
+                <span className="text-blue-400">
+                  {store.saturation.toFixed(2)}
+                </span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="2"
                 step="0.01"
-                value={saturation}
-                onChange={(e) => setSaturation(parseFloat(e.target.value))}
+                value={store.saturation}
+                onChange={(e) =>
+                  store.setSaturation(parseFloat(e.target.value))
+                }
                 className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
@@ -242,34 +291,37 @@ export default function EditorPage() {
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               Light
             </h3>
-            {/* Exposure, Contrast Sliders... (Kept identical to previous step) */}
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Exposure</span>
-                <span className="text-blue-400">{exposure.toFixed(2)}</span>
+                <span className="text-blue-400">
+                  {store.exposure.toFixed(2)}
+                </span>
               </div>
               <input
                 type="range"
                 min="-2"
                 max="2"
                 step="0.01"
-                value={exposure}
-                onChange={(e) => setExposure(parseFloat(e.target.value))}
+                value={store.exposure}
+                onChange={(e) => store.setExposure(parseFloat(e.target.value))}
                 className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Contrast</span>
-                <span className="text-blue-400">{contrast.toFixed(2)}</span>
+                <span className="text-blue-400">
+                  {store.contrast.toFixed(2)}
+                </span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="2"
                 step="0.01"
-                value={contrast}
-                onChange={(e) => setContrast(parseFloat(e.target.value))}
+                value={store.contrast}
+                onChange={(e) => store.setContrast(parseFloat(e.target.value))}
                 className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
