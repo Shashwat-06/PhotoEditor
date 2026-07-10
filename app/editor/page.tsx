@@ -247,7 +247,6 @@ export default function EditorPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Pass a boolean to determine if the user is on mobile
       const isMobile = window.innerWidth < 768;
       store.setImageData(URL.createObjectURL(file), isMobile);
     }
@@ -265,7 +264,7 @@ export default function EditorPage() {
           </Link>
 
           <span className="hidden lg:inline text-sm font-medium text-neutral-300">
-            DaVinci Web Engine
+            Photo Editor
           </span>
 
           <input
@@ -355,7 +354,8 @@ export default function EditorPage() {
                       : "bg-neutral-800/50 border-neutral-700 text-neutral-300 hover:bg-neutral-800"
                   }`}
                 >
-                  {name}
+                  {" "}
+                  {name}{" "}
                 </button>
               ))}
             </div>
@@ -837,6 +837,7 @@ export default function EditorPage() {
             </div>
           </div>
 
+          {/* Transform Section */}
           <div className="p-4 md:p-6 border-b border-neutral-800 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               Transform
