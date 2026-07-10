@@ -1,65 +1,108 @@
-import Image from "next/image";
+import Link from "next/link";
+import {
+  MdColorLens,
+  MdSpeed,
+  MdAutoFixHigh,
+  MdArrowForward,
+} from "react-icons/md";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-neutral-950 text-neutral-50 font-sans">
+      {/* Navigation */}
+      <nav className="flex items-center justify-between px-8 py-6 border-b border-neutral-800">
+        <div className="flex items-center gap-2">
+          <MdColorLens className="text-blue-500 text-2xl" />
+          <span className="text-xl font-bold tracking-tight">ChromaWeb</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="flex gap-4">
+          <Link
+            href="/login"
+            className="px-4 py-2 text-sm font-medium hover:text-blue-400 transition-colors"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            Log in
+          </Link>
+          <Link
+            href="/editor"
+            className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
           >
-            Documentation
-          </a>
+            Start Grading
+          </Link>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <main className="flex flex-col items-center text-center px-4 pt-32 pb-24">
+        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight max-w-4xl leading-tight">
+          Professional Color Grading, <br />
+          <span className="text-blue-500">Right in your Browser.</span>
+        </h1>
+        <p className="mt-6 text-lg text-neutral-400 max-w-2xl">
+          Harness the power of GPU-accelerated color grading without the heavy
+          software. Upload your photos, apply cinematic LUTs, and export in full
+          resolution.
+        </p>
+        <div className="mt-10 flex flex-col sm:flex-row gap-4">
+          <Link
+            href="/editor"
+            className="flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+          >
+            Open Editor <MdArrowForward className="text-xl" />
+          </Link>
+          <Link
+            href="#features"
+            className="flex items-center justify-center px-8 py-4 text-base font-semibold bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors"
+          >
+            View Features
+          </Link>
         </div>
       </main>
+
+      {/* Features MVP Section */}
+      <section
+        id="features"
+        className="px-8 py-24 bg-neutral-900 border-t border-neutral-800"
+      >
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-12">
+            {/* Feature 1 */}
+            <div className="flex flex-col items-start text-left">
+              <div className="p-3 bg-neutral-800 rounded-lg mb-4 text-blue-400">
+                <MdColorLens className="text-3xl" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Cinematic Controls</h3>
+              <p className="text-neutral-400">
+                Access professional lift, gamma, and gain wheels alongside
+                custom RGB curves for precise shadow and highlight control.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="flex flex-col items-start text-left">
+              <div className="p-3 bg-neutral-800 rounded-lg mb-4 text-blue-400">
+                <MdSpeed className="text-3xl" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">GPU Accelerated</h3>
+              <p className="text-neutral-400">
+                Powered by custom WebGL shaders, ensuring 60fps real-time
+                adjustments even on lower-end laptops and standard browsers.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="flex flex-col items-start text-left">
+              <div className="p-3 bg-neutral-800 rounded-lg mb-4 text-blue-400">
+                <MdAutoFixHigh className="text-3xl" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Custom LUT Support</h3>
+              <p className="text-neutral-400">
+                Import industry-standard .cube files to apply complex cinematic
+                looks instantly with one click.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
