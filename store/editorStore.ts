@@ -1,5 +1,14 @@
 import { create } from "zustand";
 
+const hexToRgb = (hex: string): [number, number, number] => {
+  const bigint = parseInt(hex.replace("#", ""), 16);
+  return [
+    ((bigint >> 16) & 255) / 255,
+    ((bigint >> 8) & 255) / 255,
+    (bigint & 255) / 255,
+  ];
+};
+
 interface EditorState {
   title: string;
   exposure: number;
@@ -7,18 +16,15 @@ interface EditorState {
   saturation: number;
   temperature: number;
   tint: number;
-
   lift: [number, number, number];
   gamma: [number, number, number];
   gain: [number, number, number];
   offset: [number, number, number];
-
   shadowsAmount: number;
   midtonesAmount: number;
   highlightsAmount: number;
   noiseReduction: number;
   grain: number;
-
   matrixSize: number;
   matrixDensity: number;
   asciiSize: number;
@@ -33,7 +39,6 @@ interface EditorState {
   scanlines: number;
   maskRadius: number;
   maskFeather: number;
-
   enabledFX: {
     matrix: boolean;
     ascii: boolean;
@@ -58,17 +63,14 @@ interface EditorState {
   setSaturation: (val: number) => void;
   setTemperature: (val: number) => void;
   setTint: (val: number) => void;
-
   setLift: (val: [number, number, number]) => void;
   setGamma: (val: [number, number, number]) => void;
   setGain: (val: [number, number, number]) => void;
   setOffset: (val: [number, number, number]) => void;
-
   setShadowsAmount: (val: number) => void;
   setMidtonesAmount: (val: number) => void;
   setHighlightsAmount: (val: number) => void;
   setNoiseReduction: (val: number) => void;
-
   setGrain: (val: number) => void;
   setMatrixSize: (val: number) => void;
   setMatrixDensity: (val: number) => void;
@@ -93,17 +95,16 @@ interface EditorState {
   applyPreset: (presetName: string) => void;
 }
 
-export const useEditorStore = create<EditorState>((set) => ({
-  title: "Untitled project",
+const defaultAdjustments = {
   exposure: 0.0,
   contrast: 1.0,
   saturation: 1.0,
   temperature: 0.0,
   tint: 0.0,
-  lift: [0, 0, 0],
-  gamma: [1, 1, 1],
-  gain: [1, 1, 1],
-  offset: [0, 0, 0],
+  lift: [0, 0, 0] as [number, number, number],
+  gamma: [1, 1, 1] as [number, number, number],
+  gain: [1, 1, 1] as [number, number, number],
+  offset: [0, 0, 0] as [number, number, number],
   shadowsAmount: 0.0,
   midtonesAmount: 0.0,
   highlightsAmount: 0.0,
@@ -113,7 +114,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   matrixDensity: 100.0,
   asciiSize: 0.0,
   asciiDensity: 100.0,
-  asciiColor: [0.0, 1.0, 0.0],
+  asciiColor: [0.0, 1.0, 0.0] as [number, number, number],
   vignette: 0.0,
   aberration: 0.0,
   hue: 0.0,
@@ -123,7 +124,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   scanlines: 0.0,
   maskRadius: 0.5,
   maskFeather: 0.2,
-
   enabledFX: {
     matrix: false,
     ascii: false,
@@ -135,7 +135,11 @@ export const useEditorStore = create<EditorState>((set) => ({
     crt: false,
     mask: false,
   },
+};
 
+export const useEditorStore = create<EditorState>((set) => ({
+  title: "Untitled project",
+  ...defaultAdjustments,
   zoom: 120,
   rotation: 0,
   isRotating: false,
@@ -214,90 +218,19 @@ export const useEditorStore = create<EditorState>((set) => ({
       zoom: isMobile ? 65 : 120,
       rotation: 0,
       activePreset: "Default",
-      exposure: 0,
-      contrast: 1,
-      saturation: 1,
-      temperature: 0,
-      tint: 0,
-      lift: [0, 0, 0],
-      gamma: [1, 1, 1],
-      gain: [1, 1, 1],
-      offset: [0, 0, 0],
-      shadowsAmount: 0,
-      midtonesAmount: 0,
-      highlightsAmount: 0,
-      noiseReduction: 0,
-      grain: 0,
-      matrixSize: 0,
-      matrixDensity: 100,
-      asciiSize: 0,
-      asciiDensity: 100,
-      asciiColor: [0.0, 1.0, 0.0],
-      vignette: 0,
-      aberration: 0,
-      hue: 0,
-      blurStrength: 0,
-      blurAngle: 0.78,
-      lightLeak: 0,
-      scanlines: 0,
-      maskRadius: 0.5,
-      maskFeather: 0.2,
-      enabledFX: {
-        matrix: false,
-        ascii: false,
-        vignette: false,
-        aberration: false,
-        hue: false,
-        shutter: false,
-        leak: false,
-        crt: false,
-        mask: false,
-      },
+      ...defaultAdjustments,
     }),
 
   applyPreset: (name) =>
     set((state) => {
       const base = {
+        title: state.title,
+        zoom: state.zoom,
+        rotation: state.rotation,
+        imageData: state.imageData,
+        isRotating: state.isRotating,
+        ...defaultAdjustments,
         activePreset: name,
-        exposure: 0,
-        contrast: 1,
-        saturation: 1,
-        temperature: 0,
-        tint: 0,
-        lift: [0, 0, 0] as [number, number, number],
-        gamma: [1, 1, 1] as [number, number, number],
-        gain: [1, 1, 1] as [number, number, number],
-        offset: [0, 0, 0] as [number, number, number],
-        shadowsAmount: 0,
-        midtonesAmount: 0,
-        highlightsAmount: 0,
-        noiseReduction: 0,
-        grain: 0,
-        matrixSize: 0,
-        matrixDensity: 100,
-        asciiSize: 0,
-        asciiDensity: 100,
-        asciiColor: [0.0, 1.0, 0.0] as [number, number, number],
-        vignette: 0,
-        aberration: 0,
-        hue: 0,
-        blurStrength: 0,
-        blurAngle: 0.78,
-        lightLeak: 0,
-        scanlines: 0,
-        maskRadius: 0.5,
-        maskFeather: 0.2,
-        enabledFX: {
-          matrix: false,
-          ascii: false,
-          vignette: false,
-          aberration: false,
-          hue: false,
-          shutter: false,
-          leak: false,
-          crt: false,
-          mask: false,
-        },
       };
       switch (name) {
         case "Teal & Orange":
@@ -325,6 +258,48 @@ export const useEditorStore = create<EditorState>((set) => ({
             exposure: -0.1,
             grain: 0.22,
             lift: [-0.02, -0.02, -0.02],
+          };
+        case "Matrix Digital":
+          return {
+            ...base,
+            matrixSize: 0.95,
+            matrixDensity: 140,
+            tint: -0.2,
+            saturation: 0.8,
+            scanlines: 0.8,
+            enabledFX: { ...base.enabledFX, matrix: true, crt: true },
+          };
+        case "Terminal ASCII":
+          return {
+            ...base,
+            asciiSize: 1.0,
+            asciiDensity: 100,
+            asciiColor: [0.0, 1.0, 0.0] as [number, number, number],
+            scanlines: 0.5,
+            enabledFX: { ...base.enabledFX, ascii: true, crt: true },
+          };
+        case "Dizzy Motion":
+          return {
+            ...base,
+            blurStrength: 0.05,
+            blurAngle: 0.78,
+            aberration: 0.5,
+            vignette: 0.4,
+            enabledFX: {
+              ...base.enabledFX,
+              shutter: true,
+              aberration: true,
+              vignette: true,
+            },
+          };
+        case "Vintage Leak":
+          return {
+            ...base,
+            lightLeak: 0.8,
+            grain: 0.15,
+            contrast: 0.9,
+            temperature: 0.1,
+            enabledFX: { ...base.enabledFX, leak: true },
           };
         default:
           return base;

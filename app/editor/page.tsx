@@ -13,16 +13,15 @@ import {
   MdZoomIn,
   MdZoomOut,
   MdImage,
-  MdMovieFilter,
-  MdLock,
-  MdKeyboardArrowDown,
   MdUpload,
   MdRefresh,
+  MdKeyboardArrowDown,
+  MdLock,
+  MdMovieFilter,
 } from "react-icons/md";
 import { useEditorStore } from "@/store/editorStore";
 import EditorCanvas from "@/components/editor/canvas/EditorCanvas";
 
-// --- HELPERS ---
 const PRESETS = [
   "Default",
   "Teal & Orange",
@@ -33,6 +32,15 @@ const PRESETS = [
   "Dizzy Motion",
   "Vintage Leak",
 ];
+
+const hexToRgbArr = (hex: string): [number, number, number] => {
+  const bigint = parseInt(hex.replace("#", ""), 16);
+  return [
+    ((bigint >> 16) & 255) / 255,
+    ((bigint >> 8) & 255) / 255,
+    (bigint & 255) / 255,
+  ];
+};
 
 const rgbToHex = (r: number, g: number, b: number) => {
   return (
@@ -46,16 +54,7 @@ const rgbToHex = (r: number, g: number, b: number) => {
   );
 };
 
-const hexToRgbArr = (hex: string): [number, number, number] => {
-  const bigint = parseInt(hex.replace("#", ""), 16);
-  return [
-    ((bigint >> 16) & 255) / 255,
-    ((bigint >> 8) & 255) / 255,
-    (bigint & 255) / 255,
-  ];
-};
-
-// --- CUSTOM COLOR WHEEL COMPONENT ---
+// --- CUSTOM VECTORSCOPE COLOR WHEEL ---
 interface ColorWheelProps {
   label: string;
   value: [number, number, number];
@@ -72,12 +71,10 @@ function ColorWheel({
   const wheelRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Math: Calculate position of the thumb based on the RGB offset.
   const neutral = isMultiplier ? 1 : 0;
   const currentDx = value[0] - neutral;
   const currentDy = value[2] - neutral;
 
-  // FIX: Multiplied by 100 instead of 50 to allow full travel from 0% to 100% of the circle
   const thumbX = currentDx * 100 + 50;
   const thumbY = currentDy * 100 + 50;
 
@@ -92,7 +89,6 @@ function ColorWheel({
     let dy = clientY - centerY;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Clamp exactly to the edge of the circle
     if (dist > radius) {
       dx = (dx / dist) * radius;
       dy = (dy / dist) * radius;
@@ -150,7 +146,7 @@ function ColorWheel({
         </span>
         <button
           onClick={handleReset}
-          className="text-neutral-500 hover:text-white"
+          className="text-neutral-500 hover:text-white transition-colors"
         >
           <MdRefresh className="text-[12px]" />
         </button>
@@ -162,28 +158,26 @@ function ColorWheel({
           setIsDragging(true);
           handlePointerEvent(e.touches[0].clientX, e.touches[0].clientY);
         }}
-        className="w-20 h-20 rounded-full relative cursor-crosshair"
+        className="w-24 h-24 rounded-full relative cursor-crosshair border border-neutral-700 overflow-hidden"
         style={{
           background:
             "conic-gradient(from 90deg, #ff0000, #ff00ff, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)",
-          boxShadow: "inset 0 0 6px rgba(0,0,0,0.4)", // Softened the inner dark shadow
         }}
       >
-        {/* FIX: Brightened the center core to make the wheel look significantly more vibrant */}
         <div
           className="absolute inset-0 rounded-full"
           style={{
             background:
-              "radial-gradient(circle, rgba(50,50,50,0.9) 15%, rgba(50,50,50,0.3) 65%, transparent 100%)",
+              "radial-gradient(circle, #ffffff 0%, rgba(255,255,255,0) 65%)",
           }}
         />
         <div
-          className="absolute w-3 h-3 bg-white border border-neutral-400 rounded-full pointer-events-none"
+          className="absolute w-2.5 h-2.5 bg-transparent border-2 border-neutral-900 rounded-full pointer-events-none"
           style={{
             left: `${thumbX}%`,
             top: `${thumbY}%`,
             transform: "translate(-50%, -50%)",
-            boxShadow: "0 0 4px rgba(0,0,0,0.7)",
+            boxShadow: "0 0 2px rgba(255,255,255,0.8)",
           }}
         />
       </div>
@@ -635,7 +629,7 @@ export default function EditorPage() {
                 className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-neutral-800">
               <div className="flex justify-between text-[11px] font-medium">
                 <span>Exposure</span>
                 <span className="font-mono text-blue-400">
