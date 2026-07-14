@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 import {
   MdArrowBack,
   MdDownload,
@@ -9,13 +14,14 @@ import {
   MdZoomOut,
   MdImage,
   MdMovieFilter,
-  MdLock,
   MdKeyboardArrowDown,
   MdUpload,
+  MdRefresh,
 } from "react-icons/md";
 import { useEditorStore } from "@/store/editorStore";
 import EditorCanvas from "@/components/editor/canvas/EditorCanvas";
 
+// --- HELPERS ---
 const PRESETS = [
   "Default",
   "Teal & Orange",
@@ -39,17 +45,154 @@ const rgbToHex = (r: number, g: number, b: number) => {
   );
 };
 
+const hexToRgbArr = (hex: string): [number, number, number] => {
+  const bigint = parseInt(hex.replace("#", ""), 16);
+  return [
+    ((bigint >> 16) & 255) / 255,
+    ((bigint >> 8) & 255) / 255,
+    (bigint & 255) / 255,
+  ];
+};
+
+// --- CUSTOM COLOR WHEEL COMPONENT ---
+interface ColorWheelProps {
+  label: string;
+  value: [number, number, number];
+  onChange: (val: [number, number, number]) => void;
+  isMultiplier?: boolean;
+}
+
+function ColorWheel({
+  label,
+  value,
+  onChange,
+  isMultiplier = false,
+}: ColorWheelProps) {
+  const wheelRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const neutral = isMultiplier ? 1 : 0;
+  const currentDx = value[0] - neutral;
+  const currentDy = value[2] - neutral;
+  const thumbX = currentDx * 50 + 50;
+  const thumbY = currentDy * 50 + 50;
+
+  const handlePointerEvent = (clientX: number, clientY: number) => {
+    if (!wheelRef.current) return;
+    const rect = wheelRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const radius = rect.width / 2;
+
+    let dx = clientX - centerX;
+    let dy = clientY - centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > radius) {
+      dx = (dx / dist) * radius;
+      dy = (dy / dist) * radius;
+    }
+
+    const normX = dx / radius;
+    const normY = dy / radius;
+
+    const r = neutral + normX * 0.5;
+    const g = neutral - normX * 0.25 - normY * 0.25;
+    const b = neutral + normY * 0.5;
+
+    onChange([r, g, b]);
+  };
+
+  const handleMouseDown = (e: ReactMouseEvent) => {
+    setIsDragging(true);
+    handlePointerEvent(e.clientX, e.clientY);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) handlePointerEvent(e.clientX, e.clientY);
+    };
+    const handleMouseUp = () => setIsDragging(false);
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isDragging)
+        handlePointerEvent(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const handleTouchEnd = () => setIsDragging(false);
+
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("touchmove", handleTouchMove, { passive: false });
+      window.addEventListener("touchend", handleTouchEnd);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isDragging]);
+
+  const handleReset = () => {
+    onChange(isMultiplier ? [1, 1, 1] : [0, 0, 0]);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex justify-between w-full px-1">
+        <span className="text-[10px] text-neutral-400 font-bold tracking-wider">
+          {label}
+        </span>
+        <button
+          onClick={handleReset}
+          className="text-neutral-500 hover:text-white"
+        >
+          <MdRefresh className="text-[12px]" />
+        </button>
+      </div>
+      <div
+        ref={wheelRef}
+        onMouseDown={handleMouseDown}
+        onTouchStart={(e) => {
+          setIsDragging(true);
+          handlePointerEvent(e.touches[0].clientX, e.touches[0].clientY);
+        }}
+        className="w-20 h-20 rounded-full relative cursor-crosshair shadow-inner"
+        style={{
+          background:
+            "conic-gradient(from 90deg, #ff0000, #ff00ff, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)",
+          boxShadow: "inset 0 0 10px rgba(0,0,0,0.8)",
+        }}
+      >
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(20,20,20,0.8) 0%, rgba(20,20,20,0.1) 100%)",
+          }}
+        />
+        <div
+          className="absolute w-3 h-3 bg-white border border-neutral-400 rounded-full shadow-md pointer-events-none"
+          style={{
+            left: `${thumbX}%`,
+            top: `${thumbY}%`,
+            transform: "translate(-50%, -50%)",
+            boxShadow: "0 0 4px rgba(0,0,0,0.5)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// --- EXPORT MENU ---
 type ExportFormat = "PNG" | "JPEG" | "WEBP" | "TIFF";
 type QualityPreset = "low" | "hd" | "fullhd" | "uhd";
 
-interface QualityOption {
-  label: string;
-  dimensions: string;
-  description: string;
-  isPremium: boolean;
-}
-
-const QUALITY_DETAILS: Record<QualityPreset, QualityOption> = {
+const QUALITY_DETAILS: Record<
+  QualityPreset,
+  { label: string; dimensions: string; description: string; isPremium: boolean }
+> = {
   low: {
     label: "Low Quality (SD)",
     dimensions: "854 × 480 px",
@@ -86,17 +229,15 @@ function ExportMenu() {
   const handleTriggerExport = () => {
     const activeQuality = QUALITY_DETAILS[quality];
     if (activeQuality.isPremium) {
-      alert("Premium Feature: Redirecting to Pro upgrade gateway...");
+      alert("Premium Feature: Redirecting to Pro upgrade...");
       return;
     }
-
     try {
       const canvas = document.querySelector("canvas");
       if (!canvas) {
         alert("Error: No canvas found. Please upload an image first.");
         return;
       }
-
       const mimeType =
         format === "JPEG"
           ? "image/jpeg"
@@ -104,31 +245,26 @@ function ExportMenu() {
             ? "image/webp"
             : "image/png";
       const dataUrl = canvas.toDataURL(mimeType, 1.0);
-
       if (dataUrl === "data:,") {
         alert("Error: Canvas is blank or empty.");
         return;
       }
-
       const safeTitle =
         storeTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase() ||
         "untitled_project";
       const link = document.createElement("a");
       link.download = `${safeTitle}_${Date.now()}.${format.toLowerCase()}`;
       link.href = dataUrl;
-
       document.body.appendChild(link);
       link.click();
-
       setTimeout(() => {
         document.body.removeChild(link);
       }, 150);
-
       setIsOpen(false);
     } catch (error) {
-      console.error("Export Error Detailed Log:", error);
+      console.error("Export Error:", error);
       alert(
-        "Export failed. Check your browser console. If it says 'Tainted Canvas', your browser is blocking the image export for security reasons.",
+        "Export failed. Check your browser console. Ensure your browser is not blocking the export.",
       );
     }
   };
@@ -139,22 +275,19 @@ function ExportMenu() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 md:gap-2 px-2.5 py-1.5 md:px-3 text-xs md:text-sm font-medium bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
       >
-        <MdDownload className="text-base md:text-lg" />
+        <MdDownload className="text-base md:text-lg" />{" "}
         <span className="hidden sm:inline">Export</span>
       </button>
-
       {isOpen && (
         <>
           <div
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-
           <div className="absolute right-0 mt-2 w-[90vw] sm:w-80 max-w-[320px] bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-50 p-4 transition-all">
             <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4">
               Download Settings
             </h4>
-
             <div className="mb-4">
               <label className="block text-[10px] text-neutral-400 font-medium mb-1.5 uppercase">
                 File Type
@@ -179,7 +312,6 @@ function ExportMenu() {
                 <MdKeyboardArrowDown className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none text-base" />
               </div>
             </div>
-
             <div className="mb-6">
               <label className="block text-[10px] text-neutral-400 font-medium mb-1.5 uppercase">
                 Size / Quality Profile
@@ -193,18 +325,14 @@ function ExportMenu() {
                         key={key}
                         type="button"
                         onClick={() => setQuality(key)}
-                        className={`w-full flex items-center justify-between p-2.5 text-left rounded-lg border text-xs transition-all ${
-                          quality === key
-                            ? "bg-neutral-950 border-neutral-700 text-white ring-1 ring-neutral-700"
-                            : "bg-neutral-950/40 border-neutral-800/80 text-neutral-400 hover:bg-neutral-950 hover:border-neutral-700"
-                        }`}
+                        className={`w-full flex items-center justify-between p-2.5 text-left rounded-lg border text-xs transition-all ${quality === key ? "bg-neutral-950 border-neutral-700 text-white ring-1 ring-neutral-700" : "bg-neutral-950/40 border-neutral-800/80 text-neutral-400 hover:bg-neutral-950 hover:border-neutral-700"}`}
                       >
                         <div className="flex flex-col gap-0.5 pr-2">
                           <span className="font-medium text-neutral-200 flex items-center flex-wrap gap-1.5">
                             {option.label}
                             {option.isPremium && (
                               <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold text-[8px] px-1 py-0.5 rounded uppercase flex items-center gap-0.5 tracking-tight">
-                                <MdLock className="text-[9px]" /> PRO
+                                PRO
                               </span>
                             )}
                           </span>
@@ -221,14 +349,9 @@ function ExportMenu() {
                 )}
               </div>
             </div>
-
             <button
               onClick={handleTriggerExport}
-              className={`w-full py-2.5 rounded-lg text-xs font-semibold tracking-wide shadow-md transition-all flex items-center justify-center gap-2 ${
-                QUALITY_DETAILS[quality].isPremium
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }`}
+              className={`w-full py-2.5 rounded-lg text-xs font-semibold tracking-wide shadow-md transition-all flex items-center justify-center gap-2 ${QUALITY_DETAILS[quality].isPremium ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black" : "bg-blue-600 hover:bg-blue-700 text-white"}`}
             >
               {QUALITY_DETAILS[quality].isPremium
                 ? "Unlock Premium Quality"
@@ -241,6 +364,7 @@ function ExportMenu() {
   );
 }
 
+// --- MAIN PAGE LAYOUT ---
 export default function EditorPage() {
   const store = useEditorStore();
 
@@ -262,11 +386,9 @@ export default function EditorPage() {
           >
             <MdArrowBack className="text-xl" />
           </Link>
-
           <span className="hidden lg:inline text-sm font-medium text-neutral-300">
             Photo Editor
           </span>
-
           <input
             type="text"
             value={store.title}
@@ -275,7 +397,6 @@ export default function EditorPage() {
             className="text-xs sm:text-sm font-medium text-neutral-200 bg-transparent border border-transparent hover:border-neutral-700 focus:border-blue-500 focus:bg-neutral-950 rounded px-1 sm:px-2 py-1 w-24 sm:w-40 md:w-48 transition-all outline-none truncate"
           />
         </div>
-
         <div className="flex items-center gap-2 sm:gap-4">
           <label className="cursor-pointer px-2.5 py-1.5 md:px-3 text-xs md:text-sm font-medium bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors flex items-center gap-1.5">
             <MdUpload className="text-base sm:hidden" />
@@ -287,14 +408,11 @@ export default function EditorPage() {
               className="hidden"
             />
           </label>
-
           <ExportMenu />
         </div>
       </header>
 
-      {/* Main Responsive Body Area */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
-        {/* Canvas Area: Fixed height on mobile, flex-1 on desktop */}
         <main className="h-[45vh] md:h-auto md:flex-1 relative flex items-center justify-center bg-black overflow-hidden group shrink-0">
           {!store.imageData ? (
             <div className="text-neutral-600 flex flex-col items-center gap-2">
@@ -336,8 +454,7 @@ export default function EditorPage() {
           </div>
         </main>
 
-        {/* Sidebar Controls: Flex-1 (fill remaining vertical space) on mobile, fixed width on desktop */}
-        <aside className="flex-1 md:flex-none w-full md:w-[340px] bg-neutral-900 border-t md:border-t-0 md:border-l border-neutral-800 flex flex-col overflow-y-auto z-10 custom-scrollbar pb-6 md:pb-0">
+        <aside className="flex-1 md:flex-none w-full md:w-[360px] bg-neutral-900 border-t md:border-t-0 md:border-l border-neutral-800 flex flex-col overflow-y-auto z-10 custom-scrollbar pb-6 md:pb-0">
           <div className="p-4 md:p-6 border-b border-neutral-800 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
               <MdMovieFilter className="text-base text-blue-500" /> Cinematic
@@ -348,16 +465,222 @@ export default function EditorPage() {
                 <button
                   key={name}
                   onClick={() => store.applyPreset(name)}
-                  className={`py-1.5 px-3 text-[10px] md:text-[11px] font-medium rounded-md border transition-all ${
-                    store.activePreset === name
-                      ? "bg-blue-600 border-blue-500 text-white shadow-lg"
-                      : "bg-neutral-800/50 border-neutral-700 text-neutral-300 hover:bg-neutral-800"
-                  }`}
+                  className={`py-1.5 px-3 text-[10px] md:text-[11px] font-medium rounded-md border transition-all ${store.activePreset === name ? "bg-blue-600 border-blue-500 text-white shadow-lg" : "bg-neutral-800/50 border-neutral-700 text-neutral-300 hover:bg-neutral-800"}`}
                 >
-                  {" "}
-                  {name}{" "}
+                  {name}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="p-4 md:p-6 border-b border-neutral-800 flex flex-col gap-4">
+            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+              Tone Curve Controls
+            </h3>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between text-[10px] font-medium text-neutral-400">
+                  <span>Highlights</span>
+                  <span className="font-mono">
+                    {store.highlightsAmount.toFixed(2)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-1"
+                  max="1"
+                  step="0.01"
+                  value={store.highlightsAmount}
+                  onChange={(e) =>
+                    store.setHighlightsAmount(parseFloat(e.target.value))
+                  }
+                  className="w-full accent-white"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between text-[10px] font-medium text-neutral-400">
+                  <span>Midtones</span>
+                  <span className="font-mono">
+                    {store.midtonesAmount.toFixed(2)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-1"
+                  max="1"
+                  step="0.01"
+                  value={store.midtonesAmount}
+                  onChange={(e) =>
+                    store.setMidtonesAmount(parseFloat(e.target.value))
+                  }
+                  className="w-full accent-neutral-400"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between text-[10px] font-medium text-neutral-400">
+                  <span>Shadows</span>
+                  <span className="font-mono">
+                    {store.shadowsAmount.toFixed(2)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-1"
+                  max="1"
+                  step="0.01"
+                  value={store.shadowsAmount}
+                  onChange={(e) =>
+                    store.setShadowsAmount(parseFloat(e.target.value))
+                  }
+                  className="w-full accent-neutral-600"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 md:p-6 border-b border-neutral-800 flex flex-col gap-4">
+            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+              4-Way Color Wheels
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-4 gap-y-6">
+              <ColorWheel
+                label="LIFT (Shadows)"
+                value={store.lift}
+                onChange={store.setLift}
+                isMultiplier={false}
+              />
+              <ColorWheel
+                label="GAMMA (Mids)"
+                value={store.gamma}
+                onChange={store.setGamma}
+                isMultiplier={true}
+              />
+              <ColorWheel
+                label="GAIN (Highs)"
+                value={store.gain}
+                onChange={store.setGain}
+                isMultiplier={true}
+              />
+              <ColorWheel
+                label="OFFSET (Global)"
+                value={store.offset}
+                onChange={store.setOffset}
+                isMultiplier={false}
+              />
+            </div>
+          </div>
+
+          <div className="p-4 md:p-6 border-b border-neutral-800 flex flex-col gap-5">
+            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+              Base Corrections
+            </h3>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-[11px] font-medium">
+                <span>Temperature</span>
+                <span className="font-mono text-amber-400">
+                  {store.temperature.toFixed(2)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="-0.5"
+                max="0.5"
+                step="0.01"
+                value={store.temperature}
+                onChange={(e) =>
+                  store.setTemperature(parseFloat(e.target.value))
+                }
+                className="w-full accent-amber-500 cursor-pointer"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-[11px] font-medium">
+                <span>Tint</span>
+                <span className="font-mono text-fuchsia-400">
+                  {store.tint.toFixed(2)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="-0.5"
+                max="0.5"
+                step="0.01"
+                value={store.tint}
+                onChange={(e) => store.setTint(parseFloat(e.target.value))}
+                className="w-full accent-fuchsia-500 cursor-pointer"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-[11px] font-medium">
+                <span>Saturation</span>
+                <span className="font-mono text-blue-400">
+                  {store.saturation.toFixed(2)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.01"
+                value={store.saturation}
+                onChange={(e) =>
+                  store.setSaturation(parseFloat(e.target.value))
+                }
+                className="w-full accent-blue-500 cursor-pointer"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-[11px] font-medium">
+                <span>Exposure</span>
+                <span className="font-mono text-blue-400">
+                  {store.exposure.toFixed(2)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="-2"
+                max="2"
+                step="0.01"
+                value={store.exposure}
+                onChange={(e) => store.setExposure(parseFloat(e.target.value))}
+                className="w-full accent-blue-500 cursor-pointer"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-[11px] font-medium">
+                <span>Contrast</span>
+                <span className="font-mono text-blue-400">
+                  {store.contrast.toFixed(2)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.01"
+                value={store.contrast}
+                onChange={(e) => store.setContrast(parseFloat(e.target.value))}
+                className="w-full accent-blue-500 cursor-pointer"
+              />
+            </div>
+            <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-neutral-800">
+              <div className="flex justify-between text-[11px] font-medium">
+                <span>Noise Reduction</span>
+                <span className="font-mono text-purple-400">
+                  {store.noiseReduction.toFixed(2)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={store.noiseReduction}
+                onChange={(e) =>
+                  store.setNoiseReduction(parseFloat(e.target.value))
+                }
+                className="w-full accent-purple-500 cursor-pointer"
+              />
             </div>
           </div>
 
@@ -368,14 +691,69 @@ export default function EditorPage() {
                 PRO
               </span>
             </h3>
-
             <div className="flex flex-col gap-3">
+              <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
+                  onClick={() => store.toggleFX("mask")}
+                >
+                  <span className="text-[11px] font-medium">
+                    Radial Subject Mask
+                  </span>
+                  <div
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.mask ? "bg-indigo-500" : "bg-neutral-700"}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${store.enabledFX.mask ? "translate-x-4" : "translate-x-0"}`}
+                    />
+                  </div>
+                </div>
+                {store.enabledFX.mask && (
+                  <div className="p-3 border-t border-neutral-800 bg-neutral-900/50 flex flex-col gap-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
+                        <span>Radius</span>
+                        <span>{store.maskRadius.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1.5"
+                        step="0.01"
+                        value={store.maskRadius}
+                        onChange={(e) =>
+                          store.setMaskRadius(parseFloat(e.target.value))
+                        }
+                        className="w-full accent-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1 text-neutral-400">
+                        <span>Feather Softness</span>
+                        <span>{store.maskFeather.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1.0"
+                        step="0.01"
+                        value={store.maskFeather}
+                        onChange={(e) =>
+                          store.setMaskFeather(parseFloat(e.target.value))
+                        }
+                        className="w-full accent-indigo-500"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-col bg-neutral-950/50 border border-neutral-800 rounded-md overflow-hidden transition-all">
                 <div
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
                   onClick={() => store.toggleFX("shutter")}
                 >
-                  <span className="text-xs font-medium">
+                  <span className="text-[11px] font-medium">
                     Shutter Drag (Blur)
                   </span>
                   <div
@@ -433,7 +811,7 @@ export default function EditorPage() {
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
                   onClick={() => store.toggleFX("leak")}
                 >
-                  <span className="text-xs font-medium">
+                  <span className="text-[11px] font-medium">
                     Vintage Light Leak
                   </span>
                   <div
@@ -466,7 +844,7 @@ export default function EditorPage() {
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
                   onClick={() => store.toggleFX("aberration")}
                 >
-                  <span className="text-xs font-medium">
+                  <span className="text-[11px] font-medium">
                     RGB Split (Aberration)
                   </span>
                   <div
@@ -499,7 +877,7 @@ export default function EditorPage() {
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
                   onClick={() => store.toggleFX("vignette")}
                 >
-                  <span className="text-xs font-medium">
+                  <span className="text-[11px] font-medium">
                     Cinematic Vignette
                   </span>
                   <div
@@ -532,7 +910,7 @@ export default function EditorPage() {
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
                   onClick={() => store.toggleFX("matrix")}
                 >
-                  <span className="text-xs font-medium">
+                  <span className="text-[11px] font-medium">
                     Digital Matrix (Natural)
                   </span>
                   <div
@@ -588,7 +966,7 @@ export default function EditorPage() {
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
                   onClick={() => store.toggleFX("ascii")}
                 >
-                  <span className="text-xs font-medium">
+                  <span className="text-[11px] font-medium">
                     Terminal ASCII Art
                   </span>
                   <div
@@ -608,7 +986,9 @@ export default function EditorPage() {
                       <input
                         type="color"
                         value={rgbToHex(...store.asciiColor)}
-                        onChange={(e) => store.setAsciiColor(e.target.value)}
+                        onChange={(e) =>
+                          store.setAsciiColor(hexToRgbArr(e.target.value))
+                        }
                         className="w-full h-8 p-0 border-0 rounded cursor-pointer bg-transparent"
                       />
                     </div>
@@ -655,7 +1035,7 @@ export default function EditorPage() {
                   className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-800"
                   onClick={() => store.toggleFX("crt")}
                 >
-                  <span className="text-xs font-medium">CRT Scanlines</span>
+                  <span className="text-[11px] font-medium">CRT Scanlines</span>
                   <div
                     className={`w-8 h-4 rounded-full p-0.5 transition-colors ${store.enabledFX.crt ? "bg-emerald-500" : "bg-neutral-700"}`}
                   >
@@ -683,7 +1063,7 @@ export default function EditorPage() {
             </div>
 
             <div className="mt-4 flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-medium">
+              <div className="flex justify-between text-[11px] font-medium">
                 <span>Film Grain Noise</span>
                 <span className="font-mono text-neutral-400">
                   {store.grain.toFixed(2)}
@@ -703,147 +1083,10 @@ export default function EditorPage() {
 
           <div className="p-4 md:p-6 border-b border-neutral-800 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-              3-Way Color Wheels
-            </h3>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="flex flex-col items-center gap-1.5">
-                <span className="text-[10px] text-neutral-400">
-                  Lift (Shadow)
-                </span>
-                <input
-                  type="color"
-                  value={rgbToHex(...store.lift)}
-                  onChange={(e) => store.setLift(e.target.value)}
-                  className="w-12 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
-                />
-              </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <span className="text-[10px] text-neutral-400">
-                  Gamma (Mid)
-                </span>
-                <input
-                  type="color"
-                  value={rgbToHex(...store.gamma)}
-                  onChange={(e) => store.setGamma(e.target.value)}
-                  className="w-12 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
-                />
-              </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <span className="text-[10px] text-neutral-400">
-                  Gain (High)
-                </span>
-                <input
-                  type="color"
-                  value={rgbToHex(...store.gain)}
-                  onChange={(e) => store.setGain(e.target.value)}
-                  className="w-12 h-10 p-0 border-0 rounded cursor-pointer bg-transparent"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 md:p-6 border-b border-neutral-800 flex flex-col gap-5">
-            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-              Manual Adjustment
-            </h3>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Temperature</span>
-                <span className="font-mono text-amber-400">
-                  {store.temperature.toFixed(2)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="-0.5"
-                max="0.5"
-                step="0.01"
-                value={store.temperature}
-                onChange={(e) =>
-                  store.setTemperature(parseFloat(e.target.value))
-                }
-                className="w-full accent-amber-500 cursor-pointer"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Tint</span>
-                <span className="font-mono text-fuchsia-400">
-                  {store.tint.toFixed(2)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="-0.5"
-                max="0.5"
-                step="0.01"
-                value={store.tint}
-                onChange={(e) => store.setTint(parseFloat(e.target.value))}
-                className="w-full accent-fuchsia-500 cursor-pointer"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Saturation</span>
-                <span className="font-mono text-blue-400">
-                  {store.saturation.toFixed(2)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.01"
-                value={store.saturation}
-                onChange={(e) =>
-                  store.setSaturation(parseFloat(e.target.value))
-                }
-                className="w-full accent-blue-500 cursor-pointer"
-              />
-            </div>
-            <div className="flex flex-col gap-2 mt-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Exposure</span>
-                <span className="font-mono text-blue-400">
-                  {store.exposure.toFixed(2)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="-2"
-                max="2"
-                step="0.01"
-                value={store.exposure}
-                onChange={(e) => store.setExposure(parseFloat(e.target.value))}
-                className="w-full accent-blue-500 cursor-pointer"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Contrast</span>
-                <span className="font-mono text-blue-400">
-                  {store.contrast.toFixed(2)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.01"
-                value={store.contrast}
-                onChange={(e) => store.setContrast(parseFloat(e.target.value))}
-                className="w-full accent-blue-500 cursor-pointer"
-              />
-            </div>
-          </div>
-
-          {/* Transform Section */}
-          <div className="p-4 md:p-6 border-b border-neutral-800 flex flex-col gap-4">
-            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               Transform
             </h3>
             <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-medium">
+              <div className="flex justify-between text-[11px] font-medium">
                 <span>Rotation Axis</span>
                 <span className="font-mono text-blue-400">
                   {(store.rotation * (180 / Math.PI)).toFixed(0)}°

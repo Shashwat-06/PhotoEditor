@@ -1,14 +1,5 @@
 import { create } from "zustand";
 
-const hexToRgb = (hex: string): [number, number, number] => {
-  const bigint = parseInt(hex.replace("#", ""), 16);
-  return [
-    (bigint >> 16) & (255 / 255),
-    (bigint >> 8) & (255 / 255),
-    (bigint & 255) / 255,
-  ];
-};
-
 interface EditorState {
   title: string;
   exposure: number;
@@ -16,11 +7,18 @@ interface EditorState {
   saturation: number;
   temperature: number;
   tint: number;
+
   lift: [number, number, number];
   gamma: [number, number, number];
   gain: [number, number, number];
+  offset: [number, number, number];
 
+  shadowsAmount: number;
+  midtonesAmount: number;
+  highlightsAmount: number;
+  noiseReduction: number;
   grain: number;
+
   matrixSize: number;
   matrixDensity: number;
   asciiSize: number;
@@ -33,6 +31,8 @@ interface EditorState {
   blurAngle: number;
   lightLeak: number;
   scanlines: number;
+  maskRadius: number;
+  maskFeather: number;
 
   enabledFX: {
     matrix: boolean;
@@ -43,6 +43,7 @@ interface EditorState {
     shutter: boolean;
     leak: boolean;
     crt: boolean;
+    mask: boolean;
   };
 
   zoom: number;
@@ -57,15 +58,23 @@ interface EditorState {
   setSaturation: (val: number) => void;
   setTemperature: (val: number) => void;
   setTint: (val: number) => void;
-  setLift: (hex: string) => void;
-  setGamma: (hex: string) => void;
-  setGain: (hex: string) => void;
+
+  setLift: (val: [number, number, number]) => void;
+  setGamma: (val: [number, number, number]) => void;
+  setGain: (val: [number, number, number]) => void;
+  setOffset: (val: [number, number, number]) => void;
+
+  setShadowsAmount: (val: number) => void;
+  setMidtonesAmount: (val: number) => void;
+  setHighlightsAmount: (val: number) => void;
+  setNoiseReduction: (val: number) => void;
+
   setGrain: (val: number) => void;
   setMatrixSize: (val: number) => void;
   setMatrixDensity: (val: number) => void;
   setAsciiSize: (val: number) => void;
   setAsciiDensity: (val: number) => void;
-  setAsciiColor: (hex: string) => void;
+  setAsciiColor: (val: [number, number, number]) => void;
   setVignette: (val: number) => void;
   setAberration: (val: number) => void;
   setHue: (val: number) => void;
@@ -73,13 +82,13 @@ interface EditorState {
   setBlurAngle: (val: number) => void;
   setLightLeak: (val: number) => void;
   setScanlines: (val: number) => void;
+  setMaskRadius: (val: number) => void;
+  setMaskFeather: (val: number) => void;
 
   toggleFX: (fxName: keyof EditorState["enabledFX"]) => void;
   setRotation: (val: number) => void;
   setIsRotating: (val: boolean) => void;
   setZoom: (val: number | ((prev: number) => number)) => void;
-
-  // Added isMobile parameter to handle responsive default zoom
   setImageData: (url: string, isMobile?: boolean) => void;
   applyPreset: (presetName: string) => void;
 }
@@ -94,6 +103,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   lift: [0, 0, 0],
   gamma: [1, 1, 1],
   gain: [1, 1, 1],
+  offset: [0, 0, 0],
+  shadowsAmount: 0.0,
+  midtonesAmount: 0.0,
+  highlightsAmount: 0.0,
+  noiseReduction: 0.0,
   grain: 0.0,
   matrixSize: 0.0,
   matrixDensity: 100.0,
@@ -107,6 +121,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   blurAngle: 0.78,
   lightLeak: 0.0,
   scanlines: 0.0,
+  maskRadius: 0.5,
+  maskFeather: 0.2,
 
   enabledFX: {
     matrix: false,
@@ -117,6 +133,7 @@ export const useEditorStore = create<EditorState>((set) => ({
     shutter: false,
     leak: false,
     crt: false,
+    mask: false,
   },
 
   zoom: 120,
@@ -131,9 +148,20 @@ export const useEditorStore = create<EditorState>((set) => ({
   setSaturation: (saturation) => set({ saturation, activePreset: "Custom" }),
   setTemperature: (temperature) => set({ temperature, activePreset: "Custom" }),
   setTint: (tint) => set({ tint, activePreset: "Custom" }),
-  setLift: (hex) => set({ lift: hexToRgb(hex), activePreset: "Custom" }),
-  setGamma: (hex) => set({ gamma: hexToRgb(hex), activePreset: "Custom" }),
-  setGain: (hex) => set({ gain: hexToRgb(hex), activePreset: "Custom" }),
+
+  setLift: (lift) => set({ lift, activePreset: "Custom" }),
+  setGamma: (gamma) => set({ gamma, activePreset: "Custom" }),
+  setGain: (gain) => set({ gain, activePreset: "Custom" }),
+  setOffset: (offset) => set({ offset, activePreset: "Custom" }),
+
+  setShadowsAmount: (shadowsAmount) =>
+    set({ shadowsAmount, activePreset: "Custom" }),
+  setMidtonesAmount: (midtonesAmount) =>
+    set({ midtonesAmount, activePreset: "Custom" }),
+  setHighlightsAmount: (highlightsAmount) =>
+    set({ highlightsAmount, activePreset: "Custom" }),
+  setNoiseReduction: (noiseReduction) =>
+    set({ noiseReduction, activePreset: "Custom" }),
 
   setGrain: (grain) => set({ grain, activePreset: "Custom" }),
   setMatrixSize: (matrixSize) => set({ matrixSize, activePreset: "Custom" }),
@@ -142,8 +170,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setAsciiSize: (asciiSize) => set({ asciiSize, activePreset: "Custom" }),
   setAsciiDensity: (asciiDensity) =>
     set({ asciiDensity, activePreset: "Custom" }),
-  setAsciiColor: (hex) =>
-    set({ asciiColor: hexToRgb(hex), activePreset: "Custom" }),
+  setAsciiColor: (asciiColor) => set({ asciiColor, activePreset: "Custom" }),
 
   setVignette: (vignette) => set({ vignette, activePreset: "Custom" }),
   setAberration: (aberration) => set({ aberration, activePreset: "Custom" }),
@@ -153,6 +180,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   setBlurAngle: (blurAngle) => set({ blurAngle, activePreset: "Custom" }),
   setLightLeak: (lightLeak) => set({ lightLeak, activePreset: "Custom" }),
   setScanlines: (scanlines) => set({ scanlines, activePreset: "Custom" }),
+  setMaskRadius: (maskRadius) => set({ maskRadius, activePreset: "Custom" }),
+  setMaskFeather: (maskFeather) => set({ maskFeather, activePreset: "Custom" }),
 
   toggleFX: (fxName) =>
     set((state) => ({
@@ -179,7 +208,6 @@ export const useEditorStore = create<EditorState>((set) => ({
       zoom: typeof val === "function" ? val(state.zoom) : val,
     })),
 
-  // Sets a smaller zoom automatically if the user is on a mobile device
   setImageData: (url, isMobile = false) =>
     set({
       imageData: url,
@@ -194,6 +222,11 @@ export const useEditorStore = create<EditorState>((set) => ({
       lift: [0, 0, 0],
       gamma: [1, 1, 1],
       gain: [1, 1, 1],
+      offset: [0, 0, 0],
+      shadowsAmount: 0,
+      midtonesAmount: 0,
+      highlightsAmount: 0,
+      noiseReduction: 0,
       grain: 0,
       matrixSize: 0,
       matrixDensity: 100,
@@ -207,6 +240,8 @@ export const useEditorStore = create<EditorState>((set) => ({
       blurAngle: 0.78,
       lightLeak: 0,
       scanlines: 0,
+      maskRadius: 0.5,
+      maskFeather: 0.2,
       enabledFX: {
         matrix: false,
         ascii: false,
@@ -216,6 +251,7 @@ export const useEditorStore = create<EditorState>((set) => ({
         shutter: false,
         leak: false,
         crt: false,
+        mask: false,
       },
     }),
 
@@ -231,6 +267,11 @@ export const useEditorStore = create<EditorState>((set) => ({
         lift: [0, 0, 0] as [number, number, number],
         gamma: [1, 1, 1] as [number, number, number],
         gain: [1, 1, 1] as [number, number, number],
+        offset: [0, 0, 0] as [number, number, number],
+        shadowsAmount: 0,
+        midtonesAmount: 0,
+        highlightsAmount: 0,
+        noiseReduction: 0,
         grain: 0,
         matrixSize: 0,
         matrixDensity: 100,
@@ -244,6 +285,8 @@ export const useEditorStore = create<EditorState>((set) => ({
         blurAngle: 0.78,
         lightLeak: 0,
         scanlines: 0,
+        maskRadius: 0.5,
+        maskFeather: 0.2,
         enabledFX: {
           matrix: false,
           ascii: false,
@@ -253,6 +296,7 @@ export const useEditorStore = create<EditorState>((set) => ({
           shutter: false,
           leak: false,
           crt: false,
+          mask: false,
         },
       };
       switch (name) {
@@ -281,48 +325,6 @@ export const useEditorStore = create<EditorState>((set) => ({
             exposure: -0.1,
             grain: 0.22,
             lift: [-0.02, -0.02, -0.02],
-          };
-        case "Matrix Digital":
-          return {
-            ...base,
-            matrixSize: 0.95,
-            matrixDensity: 140,
-            tint: -0.2,
-            saturation: 0.8,
-            scanlines: 0.8,
-            enabledFX: { ...base.enabledFX, matrix: true, crt: true },
-          };
-        case "Terminal ASCII":
-          return {
-            ...base,
-            asciiSize: 1.0,
-            asciiDensity: 100,
-            asciiColor: [0.0, 1.0, 0.0],
-            scanlines: 0.5,
-            enabledFX: { ...base.enabledFX, ascii: true, crt: true },
-          };
-        case "Dizzy Motion":
-          return {
-            ...base,
-            blurStrength: 0.05,
-            blurAngle: 0.78,
-            aberration: 0.5,
-            vignette: 0.4,
-            enabledFX: {
-              ...base.enabledFX,
-              shutter: true,
-              aberration: true,
-              vignette: true,
-            },
-          };
-        case "Vintage Leak":
-          return {
-            ...base,
-            lightLeak: 0.8,
-            grain: 0.15,
-            contrast: 0.9,
-            temperature: 0.1,
-            enabledFX: { ...base.enabledFX, leak: true },
           };
         default:
           return base;

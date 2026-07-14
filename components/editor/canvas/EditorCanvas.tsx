@@ -21,6 +21,11 @@ const ColorGradeMaterial = shaderMaterial(
     uLift: new THREE.Vector3(0, 0, 0),
     uGamma: new THREE.Vector3(1, 1, 1),
     uGain: new THREE.Vector3(1, 1, 1),
+    uOffset: new THREE.Vector3(0, 0, 0),
+    uShadowsAmount: 0.0,
+    uMidtonesAmount: 0.0,
+    uHighlightsAmount: 0.0,
+    uNoiseReduction: 0.0,
     uGrain: 0.0,
     uMatrixSize: 0.0,
     uMatrixDensity: 100.0,
@@ -34,6 +39,9 @@ const ColorGradeMaterial = shaderMaterial(
     uBlurAngle: 0.0,
     uLightLeak: 0.0,
     uScanlines: 0.0,
+    uMaskEnabled: 0.0,
+    uMaskRadius: 0.5,
+    uMaskFeather: 0.2,
   },
   `
     varying vec2 vUv;
@@ -42,12 +50,13 @@ const ColorGradeMaterial = shaderMaterial(
   `
     uniform sampler2D uTexture;
     uniform float uExposure; uniform float uContrast; uniform float uSaturation; uniform float uTemperature; uniform float uTint;
-    uniform vec3 uLift; uniform vec3 uGamma; uniform vec3 uGain;
-    uniform float uGrain; 
-    uniform float uMatrixSize; uniform float uMatrixDensity;
+    uniform vec3 uLift; uniform vec3 uGamma; uniform vec3 uGain; uniform vec3 uOffset;
+    uniform float uShadowsAmount; uniform float uMidtonesAmount; uniform float uHighlightsAmount; uniform float uNoiseReduction;
+    uniform float uGrain; uniform float uMatrixSize; uniform float uMatrixDensity;
     uniform float uAsciiSize; uniform float uAsciiDensity; uniform vec3 uAsciiColor;
     uniform float uVignette; uniform float uAberration; uniform float uHue;
     uniform float uBlurStrength; uniform float uBlurAngle; uniform float uLightLeak; uniform float uScanlines;
+    uniform float uMaskEnabled; uniform float uMaskRadius; uniform float uMaskFeather;
     varying vec2 vUv;
 
     float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
@@ -59,7 +68,6 @@ const ColorGradeMaterial = shaderMaterial(
 
     void main() {
       vec2 sampleUv = vUv;
-      
       float activeDensity = 0.0;
       if (uAsciiSize > 0.0) activeDensity = uAsciiDensity;
       else if (uMatrixSize > 0.0) activeDensity = uMatrixDensity;
@@ -72,12 +80,24 @@ const ColorGradeMaterial = shaderMaterial(
       vec3 color = vec3(0.0);
       float a = 1.0;
 
-      if (uBlurStrength > 0.0) {
+      if (uNoiseReduction > 0.0) {
+        vec3 blurred = vec3(0.0);
+        float offset = 0.002 * uNoiseReduction;
+        blurred += texture2D(uTexture, sampleUv + vec2(-offset, -offset)).rgb;
+        blurred += texture2D(uTexture, sampleUv + vec2(0.0, -offset)).rgb;
+        blurred += texture2D(uTexture, sampleUv + vec2(offset, -offset)).rgb;
+        blurred += texture2D(uTexture, sampleUv + vec2(-offset, 0.0)).rgb;
+        blurred += texture2D(uTexture, sampleUv + vec2(0.0, 0.0)).rgb;
+        blurred += texture2D(uTexture, sampleUv + vec2(offset, 0.0)).rgb;
+        blurred += texture2D(uTexture, sampleUv + vec2(-offset, offset)).rgb;
+        blurred += texture2D(uTexture, sampleUv + vec2(0.0, offset)).rgb;
+        blurred += texture2D(uTexture, sampleUv + vec2(offset, offset)).rgb;
+        color = blurred / 9.0;
+        a = texture2D(uTexture, sampleUv).a;
+      } else if (uBlurStrength > 0.0) {
         vec2 dir = vec2(cos(uBlurAngle), sin(uBlurAngle)) * uBlurStrength;
         vec4 sum = vec4(0.0);
-        for (float i = -4.0; i <= 4.0; i++) {
-           sum += texture2D(uTexture, sampleUv + dir * (i / 8.0));
-        }
+        for (float i = -4.0; i <= 4.0; i++) { sum += texture2D(uTexture, sampleUv + dir * (i / 8.0)); }
         color = (sum / 9.0).rgb;
         a = (sum / 9.0).a;
       } else {
@@ -89,13 +109,29 @@ const ColorGradeMaterial = shaderMaterial(
         a = texture2D(uTexture, sampleUv).a;
       }
 
+      vec3 originalColor = color; 
+
       color *= exp2(uExposure);
       color = (color - 0.5) * uContrast + 0.5;
       color.r += uTemperature; color.b -= uTemperature; color.g += uTint;
       if (uHue != 0.0) { color = hueShift(color, uHue); }
+
+      float tLuma = dot(color, vec3(0.299, 0.587, 0.114));
+      float sMask = clamp(1.0 - (tLuma / 0.33), 0.0, 1.0);
+      float mMask = clamp(1.0 - abs(tLuma - 0.5) / 0.33, 0.0, 1.0);
+      float hMask = clamp((tLuma - 0.66) / 0.34, 0.0, 1.0);
+      color += color * (sMask * uShadowsAmount + mMask * uMidtonesAmount + hMask * uHighlightsAmount);
+
+      color = color + uOffset; 
       color = color * uGain;
       color = color + uLift * (1.0 - color);
       color = pow(max(color, vec3(0.0)), 1.0 / max(uGamma, vec3(0.001)));
+
+      if (uMaskEnabled > 0.0) {
+        float maskDist = distance(vUv, vec2(0.5));
+        float maskAlpha = smoothstep(uMaskRadius + uMaskFeather, uMaskRadius - uMaskFeather, maskDist);
+        color = mix(originalColor, color, maskAlpha);
+      }
 
       float luma = dot(color, vec3(0.299, 0.587, 0.114));
 
@@ -110,17 +146,11 @@ const ColorGradeMaterial = shaderMaterial(
       if (uAsciiSize > 0.0) {
         vec2 cellUv = (fract(vUv * uAsciiDensity) - 0.5) / max(uAsciiSize, 0.01);
         float charShape = 0.0;
-        
         if (abs(cellUv.x) < 0.5 && abs(cellUv.y) < 0.5) {
-            if (luma > 0.8) {
-                charShape = step(max(abs(cellUv.x), abs(cellUv.y)), 0.4);
-            } else if (luma > 0.6) {
-                charShape = max(0.0, step(max(abs(cellUv.x), abs(cellUv.y)), 0.4) - step(max(abs(cellUv.x), abs(cellUv.y)), 0.2));
-            } else if (luma > 0.4) {
-                charShape = max(step(abs(cellUv.x), 0.1) * step(abs(cellUv.y), 0.4), step(abs(cellUv.y), 0.1) * step(abs(cellUv.x), 0.4));
-            } else if (luma > 0.2) {
-                charShape = 1.0 - step(0.15, length(cellUv));
-            }
+            if (luma > 0.8) charShape = step(max(abs(cellUv.x), abs(cellUv.y)), 0.4);
+            else if (luma > 0.6) charShape = max(0.0, step(max(abs(cellUv.x), abs(cellUv.y)), 0.4) - step(max(abs(cellUv.x), abs(cellUv.y)), 0.2));
+            else if (luma > 0.4) charShape = max(step(abs(cellUv.x), 0.1) * step(abs(cellUv.y), 0.4), step(abs(cellUv.y), 0.1) * step(abs(cellUv.x), 0.4));
+            else if (luma > 0.2) charShape = 1.0 - step(0.15, length(cellUv));
         }
         color = uAsciiColor * charShape; 
       }
@@ -174,6 +204,11 @@ function ImagePlane({ imageUrl }: { imageUrl: string }) {
         uLift={new THREE.Vector3(...state.lift)}
         uGamma={new THREE.Vector3(...state.gamma)}
         uGain={new THREE.Vector3(...state.gain)}
+        uOffset={new THREE.Vector3(...state.offset)}
+        uShadowsAmount={state.shadowsAmount}
+        uMidtonesAmount={state.midtonesAmount}
+        uHighlightsAmount={state.highlightsAmount}
+        uNoiseReduction={state.noiseReduction}
         uGrain={state.grain}
         uMatrixSize={state.enabledFX.matrix ? state.matrixSize : 0.0}
         uMatrixDensity={state.matrixDensity}
@@ -187,6 +222,9 @@ function ImagePlane({ imageUrl }: { imageUrl: string }) {
         uBlurAngle={state.blurAngle}
         uLightLeak={state.enabledFX.leak ? state.lightLeak : 0.0}
         uScanlines={state.enabledFX.crt ? state.scanlines : 0.0}
+        uMaskEnabled={state.enabledFX.mask ? 1.0 : 0.0}
+        uMaskRadius={state.maskRadius}
+        uMaskFeather={state.maskFeather}
       />
     </mesh>
   );
