@@ -14,6 +14,7 @@ import {
   MdZoomOut,
   MdImage,
   MdMovieFilter,
+  MdLock,
   MdKeyboardArrowDown,
   MdUpload,
   MdRefresh,
@@ -71,11 +72,14 @@ function ColorWheel({
   const wheelRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Math: Calculate position of the thumb based on the RGB offset.
   const neutral = isMultiplier ? 1 : 0;
   const currentDx = value[0] - neutral;
   const currentDy = value[2] - neutral;
-  const thumbX = currentDx * 50 + 50;
-  const thumbY = currentDy * 50 + 50;
+
+  // FIX: Multiplied by 100 instead of 50 to allow full travel from 0% to 100% of the circle
+  const thumbX = currentDx * 100 + 50;
+  const thumbY = currentDy * 100 + 50;
 
   const handlePointerEvent = (clientX: number, clientY: number) => {
     if (!wheelRef.current) return;
@@ -88,6 +92,7 @@ function ColorWheel({
     let dy = clientY - centerY;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
+    // Clamp exactly to the edge of the circle
     if (dist > radius) {
       dx = (dx / dist) * radius;
       dy = (dy / dist) * radius;
@@ -157,27 +162,28 @@ function ColorWheel({
           setIsDragging(true);
           handlePointerEvent(e.touches[0].clientX, e.touches[0].clientY);
         }}
-        className="w-20 h-20 rounded-full relative cursor-crosshair shadow-inner"
+        className="w-20 h-20 rounded-full relative cursor-crosshair"
         style={{
           background:
             "conic-gradient(from 90deg, #ff0000, #ff00ff, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)",
-          boxShadow: "inset 0 0 10px rgba(0,0,0,0.8)",
+          boxShadow: "inset 0 0 6px rgba(0,0,0,0.4)", // Softened the inner dark shadow
         }}
       >
+        {/* FIX: Brightened the center core to make the wheel look significantly more vibrant */}
         <div
           className="absolute inset-0 rounded-full"
           style={{
             background:
-              "radial-gradient(circle, rgba(20,20,20,0.8) 0%, rgba(20,20,20,0.1) 100%)",
+              "radial-gradient(circle, rgba(50,50,50,0.9) 15%, rgba(50,50,50,0.3) 65%, transparent 100%)",
           }}
         />
         <div
-          className="absolute w-3 h-3 bg-white border border-neutral-400 rounded-full shadow-md pointer-events-none"
+          className="absolute w-3 h-3 bg-white border border-neutral-400 rounded-full pointer-events-none"
           style={{
             left: `${thumbX}%`,
             top: `${thumbY}%`,
             transform: "translate(-50%, -50%)",
-            boxShadow: "0 0 4px rgba(0,0,0,0.5)",
+            boxShadow: "0 0 4px rgba(0,0,0,0.7)",
           }}
         />
       </div>
@@ -229,7 +235,7 @@ function ExportMenu() {
   const handleTriggerExport = () => {
     const activeQuality = QUALITY_DETAILS[quality];
     if (activeQuality.isPremium) {
-      alert("Premium Feature: Redirecting to Pro upgrade...");
+      alert("Premium Feature: Redirecting to Pro upgrade gateway...");
       return;
     }
     try {
@@ -332,7 +338,7 @@ function ExportMenu() {
                             {option.label}
                             {option.isPremium && (
                               <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold text-[8px] px-1 py-0.5 rounded uppercase flex items-center gap-0.5 tracking-tight">
-                                PRO
+                                <MdLock className="text-[9px]" /> PRO
                               </span>
                             )}
                           </span>
